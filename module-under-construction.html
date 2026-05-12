@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EMPIREX OS — בתהליך בנייה</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="min-h-screen bg-[#F7FAFF] text-[#07124A]">
+    <div class="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_12%_10%,rgba(24,139,255,.12),transparent_28%),radial-gradient(circle_at_88%_12%,rgba(19,201,199,.12),transparent_28%),linear-gradient(135deg,#FFFFFF_0%,#F7FAFF_48%,#EEF5FF_100%)]"></div>
+
+    <main class="mx-auto grid min-h-screen max-w-3xl place-items-center px-6">
+        <section class="w-full rounded-[2rem] border border-white/80 bg-white/75 p-8 text-center shadow-[0_24px_70px_rgba(7,18,74,.08)] backdrop-blur-xl">
+            <p class="text-xs font-black uppercase tracking-[0.22em] text-amber-700">EMPIREX OS</p>
+            <h1 id="sectionTitle" class="mt-3 text-4xl font-black tracking-[-0.04em] text-[#07124A]">מודול</h1>
+            <p class="mt-3 text-lg font-semibold text-slate-600">התוכן בתהליך בנייה</p>
+            <p class="mt-1 text-sm font-semibold text-slate-500">בקרוב יעלה כאן מסך מלא עם נתונים חיים ופעולות מתקדמות.</p>
+
+            <div class="mt-7 flex flex-wrap items-center justify-center gap-3">
+                <a href="./home-live.html?guest=1" class="rounded-2xl bg-[#0B4DFF] px-6 py-3 text-sm font-black text-white shadow-[0_20px_45px_rgba(11,77,255,.28)] transition hover:-translate-y-1">חזרה לבית</a>
+                <a href="./react-live.html" class="rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-black text-[#07124A] shadow-sm transition hover:-translate-y-1">לעמוד הכניסה</a>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const section = params.get("section") || "מודול";
+        document.getElementById("sectionTitle").textContent = decodeURIComponent(section);
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EMPIREX AI Agent — סוכן בקרה חכם</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #06111F; font-family: -apple-system, 'Segoe UI', sans-serif; color: #F8FAFC; }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #081A33; }
+    ::-webkit-scrollbar-thumb { background: #2563EB44; border-radius: 4px; }
+    .glow-blue { box-shadow: 0 0 24px rgba(37,99,235,0.18); }
+    .glow-red { box-shadow: 0 0 20px rgba(239,68,68,0.22); }
+    .glow-amber { box-shadow: 0 0 20px rgba(245,158,11,0.18); }
+    .glow-emerald { box-shadow: 0 0 20px rgba(16,185,129,0.15); }
+    .glow-purple { box-shadow: 0 0 20px rgba(139,92,246,0.18); }
+    @keyframes pulse-dot { 0%,100%{opacity:1;} 50%{opacity:.35;} }
+    .pulse-dot { animation: pulse-dot 1.8s infinite; }
+    @keyframes slide-in { from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:translateY(0);} }
+    .slide-in { animation: slide-in .22s ease; }
+    .card { background: #0B1F3A; border: 1px solid rgba(148,163,184,0.13); border-radius: 14px; }
+    .card-sm { background: rgba(255,255,255,0.04); border: 1px solid rgba(148,163,184,0.10); border-radius: 10px; }
+    input, select, textarea { outline: none; background: rgba(255,255,255,0.05); border: 1px solid rgba(148,163,184,0.18); color: #F8FAFC; border-radius: 8px; padding: 8px 12px; font-size: 14px; }
+    input:focus, select:focus, textarea:focus { border-color: #2563EB88; }
+    .toggle { position:relative; display:inline-block; width:40px; height:22px; }
+    .toggle input { opacity:0; width:0; height:0; }
+    .slider { position:absolute; cursor:pointer; top:0;left:0;right:0;bottom:0; background:#1e3a5f; border-radius:22px; transition:.3s; }
+    .slider:before { position:absolute; content:""; height:16px; width:16px; left:3px; bottom:3px; background:#94A3B8; border-radius:50%; transition:.3s; }
+    input:checked + .slider { background:#2563EB; }
+    input:checked + .slider:before { transform:translateX(18px); background:#fff; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useMemo } = React;
+
+// ============================================================
+// DATA MODELS & MOCK DATA
+// ============================================================
+
+const mockAccount = {
+  id: "acc-001", name: "FTMO Challenge $100K", broker: "FTMO",
+  balance: 10842.75, equity: 10728.42, initialBalance: 10000,
+  dailyPnl: -214.36, totalPnl: 842.75,
+  dailyLossLimit: 500, maxLossLimit: 1000, profitTarget: 1000,
+  openRiskPercent: 1.82, maxDrawdownPercent: 4.31,
+  currency: "USD", status: "connected", lastSyncAt: new Date(Date.now()-140000).toISOString()
+};
+
+const mockBot = {
+  id: "bot-001", name: "Breakout Pro v2.1", status: "active",
+  strategy: "Breakout + Momentum Filter", mode: "live",
+  brokerConnection: "connected", uptime: "23d 14h 32m",
+  lastActionAt: new Date(Date.now()-420000).toISOString(),
+  openPositions: 4, tradesToday: 7, winRate: 68.4, dailyPnl: 213.45, riskMode: "normal"
+};
+
+const mockPositions = [
+  { id:"p1", symbol:"XAUUSD", direction:"BUY", entryPrice:2318.40, currentPrice:2312.10, lotSize:0.05, unrealizedPnl:-31.50, riskPercent:0.62, openedAt:"2026-05-12T07:14:00Z", strategy:"Breakout" },
+  { id:"p2", symbol:"GBPUSD", direction:"SELL", entryPrice:1.2738, currentPrice:1.2745, lotSize:0.08, unrealizedPnl:-56.00, riskPercent:0.56, openedAt:"2026-05-12T08:22:00Z", strategy:"Momentum" },
+  { id:"p3", symbol:"EURUSD", direction:"BUY", entryPrice:1.0842, currentPrice:1.0861, lotSize:0.10, unrealizedPnl:+19.00, riskPercent:0.38, openedAt:"2026-05-12T09:05:00Z", strategy:"Breakout" },
+  { id:"p4", symbol:"USDJPY", direction:"SELL", entryPrice:155.72, currentPrice:155.68, lotSize:0.06, unrealizedPnl:+15.42, riskPercent:0.26, openedAt:"2026-05-12T09:41:00Z", strategy:"Scalp" },
+];
+
+const mockTrades = [
+  { id:"t1", symbol:"XAUUSD", direction:"BUY", status:"closed", openedAt:"2026-05-11T08:10:00Z", closedAt:"2026-05-11T10:32:00Z", session:"London", strategy:"Breakout", entryPrice:2305.20, exitPrice:2298.40, lotSize:0.05, riskPercent:0.5, pnl:-34.00, rMultiple:-0.68, openedBy:"bot" },
+  { id:"t2", symbol:"GBPUSD", direction:"BUY", status:"closed", openedAt:"2026-05-11T10:14:00Z", closedAt:"2026-05-11T12:45:00Z", session:"London", strategy:"Momentum", entryPrice:1.2695, exitPrice:1.2741, lotSize:0.08, riskPercent:0.5, pnl:+36.80, rMultiple:0.73, openedBy:"bot" },
+  { id:"t3", symbol:"EURUSD", direction:"SELL", status:"closed", openedAt:"2026-05-11T13:20:00Z", closedAt:"2026-05-11T15:10:00Z", session:"New York", strategy:"Breakout", entryPrice:1.0878, exitPrice:1.0841, lotSize:0.10, riskPercent:0.5, pnl:+37.00, rMultiple:0.74, openedBy:"bot" },
+  { id:"t4", symbol:"XAUUSD", direction:"SELL", status:"closed", openedAt:"2026-05-11T16:05:00Z", closedAt:"2026-05-11T17:44:00Z", session:"New York", strategy:"Breakout", entryPrice:2312.80, exitPrice:2322.40, lotSize:0.05, riskPercent:0.5, pnl:-48.00, rMultiple:-0.96, openedBy:"bot" },
+  { id:"t5", symbol:"XAUUSD", direction:"BUY", status:"closed", openedAt:"2026-05-11T18:12:00Z", closedAt:"2026-05-11T19:05:00Z", session:"New York", strategy:"Breakout", entryPrice:2320.10, exitPrice:2311.50, lotSize:0.05, riskPercent:0.5, pnl:-43.00, rMultiple:-0.86, openedBy:"bot" },
+  { id:"t6", symbol:"USDJPY", direction:"BUY", status:"closed", openedAt:"2026-05-11T20:18:00Z", closedAt:"2026-05-11T22:10:00Z", session:"New York", strategy:"Scalp", entryPrice:155.42, exitPrice:155.71, lotSize:0.06, riskPercent:0.3, pnl:+17.40, rMultiple:0.58, openedBy:"user" },
+  { id:"t7", symbol:"GBPUSD", direction:"SELL", status:"closed", openedAt:"2026-05-12T02:30:00Z", closedAt:"2026-05-12T04:50:00Z", session:"Asia", strategy:"Momentum", entryPrice:1.2751, exitPrice:1.2734, lotSize:0.08, riskPercent:0.5, pnl:+13.60, rMultiple:0.27, openedBy:"bot" },
+];
+
+const mockAlerts = [
+  { id:"a1", severity:"high", category:"risk", title:"מגבלת הפסד יומי ב-72%", message:"ההפסד היומי הגיע ל-$214.36 מתוך מגבלה של $500. זה 72% מהמגבלה המותרת. אם ממשיכים בקצב הנוכחי, קיים סיכון של חריגה.", status:"open", actionRequired:true, suggestedAction:"REDUCE_RISK_MODE", createdAt:"2026-05-12T09:45:00Z" },
+  { id:"a2", severity:"high", category:"risk", title:"חשיפה ל-XAUUSD מעל סף", message:"3 מתוך 4 פוזיציות פעילות כוללות XAUUSD. ריכוז הסיכון בנכס יחיד עולה על 35% מהסיכון הפעיל הכולל.", status:"open", actionRequired:true, suggestedAction:"BLOCK_SYMBOL", createdAt:"2026-05-12T09:20:00Z" },
+  { id:"a3", severity:"high", category:"strategy", title:"3 הפסדים רצופים ב-XAUUSD", message:"זוהו 3 הפסדים רצופים ב-XAUUSD ב-12 שעות האחרונות: -$34, -$48, -$43. סה\"כ הפסד של $125 בנכס בודד.", status:"open", actionRequired:true, suggestedAction:"BLOCK_SYMBOL", createdAt:"2026-05-12T09:10:00Z" },
+  { id:"a4", severity:"warning", category:"broker", title:"סנכרון ברוקר מאוחר", message:"סנכרון אחרון לפני 14 דקות. עיכוב מעל 10 דקות יכול לגרום לנתוני סיכון לא מדויקים.", status:"open", actionRequired:false, createdAt:"2026-05-12T09:30:00Z" },
+  { id:"a5", severity:"warning", category:"news", title:"אירוע חדשות מתקרב", message:"CPI אמריקאי ב-21:30 — השפעה גבוהה. מומלץ לסגור פוזיציות פתוחות על USD 30 דקות לפני.", status:"open", actionRequired:false, createdAt:"2026-05-12T08:00:00Z" },
+  { id:"a6", severity:"warning", category:"strategy", title:"מסחר יתר אחרי 18:00", message:"5 עסקאות נפתחו בסשן ניו יורק המאוחר (18:00-22:00) — מעל הסף הפנימי של 3 עסקאות לשעות אלה.", status:"acknowledged", actionRequired:false, createdAt:"2026-05-12T07:50:00Z" },
+  { id:"a7", severity:"info", category:"bot", title:"הבוט עצר לפי כלל בטיחות", message:"הבוט עצר אוטומטית ב-22:14 עקב חריגה מ-3 הפסדים רצופים — כלל בטיחות פנימי הופעל.", status:"resolved", actionRequired:false, createdAt:"2026-05-11T22:15:00Z", resolvedAt:"2026-05-12T06:00:00Z" },
+  { id:"a8", severity:"warning", category:"strategy", title:"GBPUSD — חולשה השבוע", message:"אסטרטגיית Momentum על GBPUSD מציגה יחס ניצחון של 33% השבוע לעומת 61% ממוצע ב-30 ימים. 6 עסקאות, 2 בלבד ברווח.", status:"open", actionRequired:false, createdAt:"2026-05-12T06:30:00Z" },
+];
+
+const mockInvestigations = [
+  {
+    id:"inv1", status:"completed", severity:"high",
+    title:"חקירת קפיצת הפסד יומי — ריכוז XAUUSD",
+    triggerEventId:"a3", triggerReason:"3 הפסדים רצופים ב-XAUUSD",
+    scope:"last_24h",
+    timeline:[
+      { time:"08:10", title:"עסקה ראשונה נפתחת", description:"XAUUSD BUY 0.05 — Breakout" },
+      { time:"10:32", title:"עסקה נסגרת בהפסד", description:"-$34. מחיר ירד 68 נקודות מהכניסה" },
+      { time:"16:05", title:"עסקה שנייה — XAUUSD SELL", description:"כניסה בכיוון הפוך על אותו נכס" },
+      { time:"17:44", title:"הפסד שני", description:"-$48. Breakout signal false — חזרה מהירה" },
+      { time:"18:12", title:"עסקה שלישית — XAUUSD BUY", description:"הבוט נכנס שוב לאחר 28 דקות" },
+      { time:"19:05", title:"הפסד שלישי", description:"-$43. כלל 3 הפסדים רצופים הופעל. בוט עצר." },
+    ],
+    checksPerformed:["בדיקת ריכוז נכס", "בדיקת pattern הפסד", "בדיקת שעות מסחר", "בדיקת כיוון vs. trend יומי", "בדיקת קורלציה עם EUR/USD", "בדיקת volatility באמצעות ATR"],
+    findings:[
+      { title:"ריכוז גבוה ב-XAUUSD", description:"67% מהפסד היומי הגיע מנכס אחד בלבד", impact:"high" },
+      { title:"כניסות נגד trend יומי", description:"כל 3 עסקאות נפתחו נגד ה-trend היומי של זהב", impact:"high" },
+      { title:"מסחר יתר בסשן המאוחר", description:"3 עסקאות ב-XAUUSD תוך 3 שעות ב-18:00-21:00", impact:"medium" },
+      { title:"ATR גבוה — volatility קיצוני", description:"ATR שעתי היה 8.2 — מעל 150% מהממוצע ב-14 ימים", impact:"medium" },
+    ],
+    rootCause:"הבוט המשיך לסחור ב-XAUUSD תחת volatility גבוהה מחוץ לשעות האופטימליות, עם 3 כניסות ב-3 שעות — כולן נגד trend יומי.",
+    conclusion:"הבעיה אינה כללית. רוב ההפסד הגיע מ-XAUUSD בסשן ניו יורק המאוחר, כאשר הבוט פתח 3 עסקאות באותו כיוון תוך 53 דקות. מומלץ לחסום עסקאות חדשות על XAUUSD לאחר 2 הפסדים רצופים.",
+    recommendedActions:[
+      { label:"חסום XAUUSD — עסקאות חדשות", actionType:"BLOCK_SYMBOL", requiresApproval:false },
+      { label:"הפחת מצב סיכון לשמרני", actionType:"REDUCE_RISK_MODE", requiresApproval:false },
+      { label:"צור הערת יומן", actionType:"CREATE_JOURNAL_NOTE", requiresApproval:false },
+    ],
+    createdAt:"2026-05-12T09:10:00Z", completedAt:"2026-05-12T09:25:00Z"
+  },
+  {
+    id:"inv2", status:"in_progress", severity:"warning",
+    title:"ריכוז חשיפה — XAUUSD מעל 35%",
+    triggerEventId:"a2", triggerReason:"חשיפה ל-XAUUSD מעל סף פנימי",
+    scope:"last_24h",
+    timeline:[
+      { time:"07:14", title:"פוזיציה ראשונה נפתחת", description:"XAUUSD BUY 0.05" },
+      { time:"08:22", title:"פוזיציה שנייה — GBPUSD", description:"מגוון נכסים" },
+      { time:"09:05", title:"EURUSD נוסף", description:"3 נכסים שונים" },
+      { time:"09:41", title:"USDJPY רביעי", description:"4 פוזיציות — XAUUSD 25% חשיפה" },
+    ],
+    checksPerformed:["חישוב חשיפה לפי נכס", "בדיקת קורלציה בין נכסים"],
+    findings:[
+      { title:"ריכוז XAUUSD", description:"25% מהסיכון הפעיל — בגבול אך לא חריג", impact:"medium" },
+    ],
+    rootCause:"בבדיקה — טרם הושלמה",
+    conclusion:"בבדיקה...",
+    recommendedActions:[],
+    createdAt:"2026-05-12T09:22:00Z"
+  },
+  {
+    id:"inv3", status:"completed", severity:"warning",
+    title:"מסחר יתר — סשן ניו יורק המאוחר",
+    triggerEventId:"a6", triggerReason:"5 עסקאות אחרי 18:00",
+    scope:"last_24h",
+    timeline:[
+      { time:"18:05", title:"עסקה 1", description:"XAUUSD" },
+      { time:"18:14", title:"עסקה 2", description:"GBPUSD" },
+      { time:"18:52", title:"עסקה 3", description:"XAUUSD" },
+      { time:"19:12", title:"עסקה 4", description:"EURUSD" },
+      { time:"20:18", title:"עסקה 5", description:"USDJPY — חצה סף" },
+    ],
+    checksPerformed:["בדיקת עסקאות לפי שעה", "בדיקת ביצועים לפי סשן", "בדיקת win rate אחרי 18:00"],
+    findings:[
+      { title:"ביצועים חלשים אחרי 18:00", description:"Win rate 20% בסשן זה לעומת 65% בלונדון", impact:"high" },
+    ],
+    rootCause:"הבוט אינו מסנן שעות מסחר — פועל גם בשעות חלשות היסטורית.",
+    conclusion:"מומלץ להוסיף Time Filter לאסטרטגיה — הגבל מסחר בין 18:00-22:00 EST.",
+    recommendedActions:[
+      { label:"צור הערת יומן עם ממצאים", actionType:"CREATE_JOURNAL_NOTE", requiresApproval:false },
+    ],
+    createdAt:"2026-05-12T07:52:00Z", completedAt:"2026-05-12T08:10:00Z"
+  },
+  {
+    id:"inv4", status:"open", severity:"warning",
+    title:"חולשת אסטרטגיית Momentum — GBPUSD",
+    triggerEventId:"a8", triggerReason:"Win rate 33% השבוע",
+    scope:"current_week",
+    timeline:[
+      { time:"שני", title:"הפסד", description:"GBPUSD Momentum -$22" },
+      { time:"שלישי", title:"רווח", description:"+$18" },
+      { time:"רביעי", title:"הפסד x2", description:"-$19, -$27" },
+      { time:"חמישי", title:"רווח", description:"+$14" },
+      { time:"שישי", title:"הפסד", description:"-$31" },
+    ],
+    checksPerformed:["בדיקת ביצועי אסטרטגיה בשבועות קודמים"],
+    findings:[],
+    rootCause:"טרם הושלמה החקירה",
+    conclusion:"בבדיקה...",
+    recommendedActions:[],
+    createdAt:"2026-05-12T06:35:00Z"
+  },
+];
+
+const mockReports = [
+  {
+    id:"r1", reportType:"daily", title:"דוח מסחר יומי — אתמול",
+    periodStart:"2026-05-11", periodEnd:"2026-05-11",
+    summary:"יום מסחר עם תוצאות מעורבות. 7 עסקאות, 4 ברווח. רוב ההפסד מ-XAUUSD.",
+    metrics:{ pnl:-14.20, trades:7, winRate:57.1, averageR:0.12, drawdown:1.42, riskUsed:72 },
+    insights:["עסקאות London — win rate 75%","XAUUSD — 3 הפסדים רצופים","Best trade: EURUSD +$37","Worst trade: XAUUSD -$48"],
+    anomalies:["3 הפסדים רצופים ב-XAUUSD","5 עסקאות אחרי 18:00"],
+    recommendedActions:["הגבל XAUUSD מחר","הוסף Time Filter אחרי 18:00","בדוק Breakout signal quality"],
+    createdAt:"2026-05-12T06:00:00Z"
+  },
+  {
+    id:"r2", reportType:"weekly", title:"דוח שבועי — שבוע 19/2026",
+    periodStart:"2026-05-06", periodEnd:"2026-05-11",
+    summary:"שבוע חיובי עם $842.75 רווח כולל. ביצועים גבוהים בסשן לונדון.",
+    metrics:{ pnl:842.75, trades:34, winRate:64.7, averageR:0.62, drawdown:4.31, riskUsed:43.1 },
+    insights:["London Breakout — ביצועים מעולים","GBPUSD Momentum — חלשה השבוע","Scalp strategy — stable"],
+    anomalies:["GBPUSD win rate ירד מ-61% ל-33%"],
+    recommendedActions:["בדוק GBPUSD Momentum — שקול pause","המשך ב-Breakout London strategy"],
+    createdAt:"2026-05-12T06:00:00Z"
+  },
+  {
+    id:"r3", reportType:"risk", title:"דוח סיכון — מצב נוכחי",
+    periodStart:"2026-05-12", periodEnd:"2026-05-12",
+    summary:"מצב סיכון: גבוה. 72% מגבלת הפסד יומי נוצלה. חשיפת XAUUSD מעל סף.",
+    metrics:{ pnl:-214.36, trades:0, winRate:0, averageR:0, drawdown:4.31, riskUsed:72 },
+    insights:["Daily Loss: $214/$500 — 72%","Max Drawdown: 4.31% מתוך 10%","Open Risk: 1.82%","XAUUSD: 35% מהסיכון הפעיל"],
+    anomalies:["ריכוז יתר ב-XAUUSD","הפסד יומי מואץ"],
+    recommendedActions:["הפחת מצב סיכון לשמרני","חסום XAUUSD","סגור פוזיציות הפסדיות"],
+    createdAt:"2026-05-12T10:00:00Z"
+  },
+  {
+    id:"r4", reportType:"bot", title:"דוח ביצועי בוט — Breakout Pro v2.1",
+    periodStart:"2026-04-19", periodEnd:"2026-05-12",
+    summary:"הבוט פעיל 23 ימים. Win rate 68.4%. יציב בלונדון, חולשה ב-NY המאוחר.",
+    metrics:{ pnl:213.45, trades:7, winRate:68.4, averageR:0.71, drawdown:2.1, riskUsed:35 },
+    insights:["London session — win rate 75%","NY Early session — 61%","NY Late (18-22) — 22% win rate","Asia — 45%"],
+    anomalies:["ביצועים ירודים אחרי 18:00","ריכוז XAUUSD"],
+    recommendedActions:["הוסף Time Filter 18-22 EST","הגבל XAUUSD ל-2 עסקאות ביום"],
+    createdAt:"2026-05-12T06:00:00Z"
+  },
+];
+
+const mockActions = [
+  { id:"act1", actionType:"BLOCK_SYMBOL", title:"חסום XAUUSD — עסקאות חדשות", description:"מנע פתיחת עסקאות חדשות על XAUUSD עקב 3 הפסדים רצופים וריכוז סיכון.", status:"pending_approval", severity:"high", requiresApproval:false, reducesRisk:true, increasesRisk:false, payload:{symbol:"XAUUSD"}, createdAt:"2026-05-12T09:25:00Z" },
+  { id:"act2", actionType:"REDUCE_RISK_MODE", title:"הפחת מצב סיכון לשמרני", description:"שנה את מצב הסיכון מ-normal ל-conservative עקב 72% ניצול מגבלת הפסד יומי.", status:"pending_approval", severity:"high", requiresApproval:false, reducesRisk:true, increasesRisk:false, payload:{from:"normal", to:"conservative"}, createdAt:"2026-05-12T09:45:00Z" },
+  { id:"act3", actionType:"PAUSE_BOT", title:"עצור בוט זמנית", description:"עצור את Breakout Pro v2.1 עד לאישור המשך מסחר — בשל ריכוז סיכון וחריגת XAUUSD.", status:"suggested", severity:"high", requiresApproval:true, reducesRisk:true, increasesRisk:false, payload:{botId:"bot-001"}, createdAt:"2026-05-12T09:50:00Z" },
+  { id:"act4", actionType:"CREATE_JOURNAL_NOTE", title:"צור הערת יומן אוטומטית", description:"תיעוד ממצאי חקירת XAUUSD ביומן המסחר עם timestamps ומסקנות.", status:"approved", severity:"info", requiresApproval:false, reducesRisk:false, increasesRisk:false, payload:{note:"3 הפסדים רצופים XAUUSD"}, createdAt:"2026-05-12T09:26:00Z", executedAt:"2026-05-12T09:27:00Z" },
+  { id:"act5", actionType:"SEND_NOTIFICATION", title:"שלח התראה קריטית", description:"שליחת התראה: מגבלת הפסד יומי ב-72%. נדרשת תשומת לב מיידית.", status:"executed", severity:"warning", requiresApproval:false, reducesRisk:false, increasesRisk:false, payload:{channel:"in-app"}, createdAt:"2026-05-12T09:45:00Z", executedAt:"2026-05-12T09:45:30Z" },
+  { id:"act6", actionType:"CREATE_INVESTIGATION", title:"פתח חקירה: GBPUSD Momentum", description:"פתיחת חקירה לניתוח חולשת אסטרטגיית Momentum על GBPUSD השבוע.", status:"executed", severity:"warning", requiresApproval:false, reducesRisk:false, increasesRisk:false, payload:{trigger:"strategy_underperformance"}, createdAt:"2026-05-12T06:35:00Z", executedAt:"2026-05-12T06:36:00Z" },
+];
+
+const mockBriefing = {
+  id:"brief1", date:"2026-05-12", previousTradingDay:"2026-05-11",
+  title:"דוח יומי — אתמול",
+  greeting:"בוקר טוב דניאל. אתמול הסתיים בהפסד של $14.20 עם 7 עסקאות ואחוז הצלחה של 57%. רוב ההפסד הגיע מ-XAUUSD בסשן ניו יורק המאוחר.",
+  pnl:-14.20, tradesCount:7, winRate:57.1, averageR:0.12,
+  maxDailyDrawdown:1.42, bestTrade:"EURUSD +$37", worstTrade:"XAUUSD -$48",
+  mainInsight:"חולשה ב-XAUUSD בשעות 18-20 EST — 3 הפסדים רצופים. בלונדון ביצועים טובים (75% win rate).",
+  riskRecommendation:"הגבל XAUUSD להיום. הפחת גודל פוזיציה ב-25%. עקוב אחרי CPI בשעה 21:30.",
+  botStatusSummary:"Breakout Pro v2.1 — פעיל. 4 פוזיציות פתוחות. Uptime 23 ימים.",
+  actionItems:["בדוק פוזיציות XAUUSD פתוחות","סגור לפני CPI 21:30","הפחת סיכון ל-0.5% לעסקה היום"]
+};
+
+const mockComplianceRules = [
+  { id:"c1", name:"הפסד יומי מקסימלי", status:"warning", currentValue:214.36, limit:500, message:"42.9% מהמגבלה נוצלה — בגבול warning" },
+  { id:"c2", name:"הפסד כולל מקסימלי", status:"passed", currentValue:157.25, limit:1000, message:"15.7% — בטוח" },
+  { id:"c3", name:"יעד רווח", status:"passed", currentValue:842.75, limit:1000, message:"84.3% מהיעד הושג" },
+  { id:"c4", name:"ימי מסחר מינימלי", status:"warning", currentValue:23, limit:4, message:"OK — אך יש לאמת לפי תקנון FTMO" },
+  { id:"c5", name:"פוזיציות מקסימום", status:"passed", currentValue:4, limit:10, message:"40% מהמקסימום" },
+  { id:"c6", name:"סנכרון ברוקר", status:"warning", currentValue:14, limit:10, message:"עיכוב 14 דקות — מעל הסף" },
+  { id:"c7", name:"מסחר סוף שבוע", status:"passed", currentValue:0, limit:0, message:"אין פוזיציות בסוף שבוע" },
+  { id:"c8", name:"סיכון מקסימלי לעסקה", status:"passed", currentValue:0.62, limit:2, message:"0.62% — בטוח" },
+];
+
+const mockEvents = [
+  { id:"ev1", eventType:"RISK_LIMIT_APPROACHING", source:"risk_engine", severity:"high", title:"מגבלת הפסד יומי ב-72%", description:"", createdAt:"2026-05-12T09:45:00Z" },
+  { id:"ev2", eventType:"LOSS_STREAK_DETECTED", source:"risk_engine", severity:"high", title:"3 הפסדים רצופים ב-XAUUSD", description:"", createdAt:"2026-05-12T09:10:00Z" },
+  { id:"ev3", eventType:"BOT_PAUSED", source:"bot", severity:"info", title:"הבוט עצר אוטומטית", description:"", createdAt:"2026-05-11T22:15:00Z" },
+  { id:"ev4", eventType:"TRADE_CLOSED", source:"broker", severity:"info", title:"XAUUSD SELL נסגר -$43", description:"", createdAt:"2026-05-11T19:05:00Z" },
+  { id:"ev5", eventType:"REPORT_TIME_REACHED", source:"agent", severity:"info", title:"דוח יומי נוצר", description:"", createdAt:"2026-05-12T06:00:00Z" },
+  { id:"ev6", eventType:"BOT_STARTED", source:"bot", severity:"info", title:"הבוט הופעל — Breakout Pro v2.1", description:"", createdAt:"2026-05-12T06:02:00Z" },
+  { id:"ev7", eventType:"TRADE_OPENED", source:"bot", severity:"info", title:"XAUUSD BUY נפתח 0.05 lot", description:"", createdAt:"2026-05-12T07:14:00Z" },
+  { id:"ev8", eventType:"NEWS_EVENT_APPROACHING", source:"agent", severity:"warning", title:"CPI אמריקאי בעוד 3 שעות", description:"", createdAt:"2026-05-12T08:00:00Z" },
+];
+
+const mockSettings = {
+  briefingEnabled: true, briefingTime: "07:00", briefingOnDashboard: true,
+  briefingPush: false, briefingIncludeBot: true, briefingIncludeRisk: true,
+  dailyLossWarning: 60, dailyLossHigh: 80, dailyLossCritical: 95,
+  drawdownWarning: 50, openRiskMax: 2, overtradingThreshold: 5, lossStreakThreshold: 3,
+  canAutoAlerts: true, canAutoJournal: true, canAutoInvestigation: true,
+  canPauseBotCritical: true, canBlockSymbolCritical: true,
+  canResumeOnlyApproval: true, canChangeStrategyApproval: true, canIncreaseRiskNever: true,
+  notifyInApp: true, notifyEmail: false, notifyPush: false, notifyTelegram: false,
+  pauseBotCriticalLoss: true, blockTradesNearMax: true, reduceRiskAfterStreak: true,
+  blockSymbolAfterLosses: true, disableStrategyUnderperform: false,
+};
+
+const mockChatHistory = [
+  { role:"agent", text:"שלום דניאל. אני סוכן הבקרה שלך. זיהיתי 3 חריגות פעילות ו-2 פעולות ממתינות לאישורך." },
+  { role:"user", text:"למה הבוט עצר אתמול?" },
+  { role:"agent", text:"הבוט עצר ב-22:14 עקב הפעלת כלל בטיחות: 3 הפסדים רצופים ב-XAUUSD. סה\"כ הפסד של $125 ב-3 שעות. הבוט הופעל מחדש ב-06:02 לאחר reset יומי." },
+  { role:"user", text:"מה החריגה הכי חמורה היום?" },
+  { role:"agent", text:"החריגה החמורה ביותר: 72% מגבלת הפסד היומי ($214/$500). בנוסף, 3 הפסדים רצופים ב-XAUUSD ובעיית ריכוז חשיפה. ממליץ על הפחתת סיכון מיידית." },
+];
+
+// ============================================================
+// UTILITY FUNCTIONS
+// ============================================================
+
+function fmt$(n, digits=2){ return (n>=0?"+$":"−$")+Math.abs(n).toFixed(digits).replace(/\B(?=(\d{3})+(?!\d))/g,","); }
+function fmtPct(n){ return (n>=0?"+":"")+n.toFixed(1)+"%"; }
+function relTime(iso){
+  const d=new Date(iso), now=Date.now(), diff=now-d.getTime();
+  if(diff<60000) return "כרגע";
+  if(diff<3600000) return `לפני ${Math.floor(diff/60000)} דק'`;
+  if(diff<86400000) return `לפני ${Math.floor(diff/3600000)} שע'`;
+  return d.toLocaleDateString("he-IL");
+}
+function severityColor(s){
+  return { critical:"text-red-400", high:"text-orange-400", warning:"text-amber-400", info:"text-blue-400" }[s]||"text-slate-400";
+}
+function severityBg(s){
+  return { critical:"bg-red-500/15 border-red-500/30", high:"bg-orange-500/12 border-orange-500/25", warning:"bg-amber-500/12 border-amber-500/25", info:"bg-blue-500/10 border-blue-500/20" }[s]||"bg-slate-500/10 border-slate-500/20";
+}
+function severityLabel(s){
+  return { critical:"קריטי", high:"גבוה", warning:"אזהרה", info:"מידע" }[s]||s;
+}
+function statusBg(s){
+  return { open:"bg-red-500/15 text-red-400", acknowledged:"bg-amber-500/12 text-amber-400", resolved:"bg-emerald-500/12 text-emerald-400" }[s]||"bg-slate-500/10 text-slate-400";
+}
+function statusLabel(s){
+  return { open:"פתוח", acknowledged:"אושר", resolved:"נסגר", in_progress:"בטיפול", completed:"הושלם", suggested:"מוצע", pending_approval:"ממתין לאישור", approved:"אושר", executed:"בוצע", rejected:"נדחה" }[s]||s;
+}
+function actionTypeLabel(t){
+  return { PAUSE_BOT:"עצירת בוט", RESUME_BOT:"הפעלת בוט", BLOCK_SYMBOL:"חסימת נכס", REDUCE_RISK_MODE:"הורדת סיכון", CREATE_JOURNAL_NOTE:"הערת יומן", SEND_NOTIFICATION:"שלח התראה", CREATE_INVESTIGATION:"פתח חקירה", REQUIRE_USER_CONFIRMATION:"אשר ידנית" }[t]||t;
+}
+function catLabel(c){ return { risk:"סיכון", compliance:"עמידה בכללים", bot:"בוט", broker:"ברוקר", strategy:"אסטרטגיה", news:"חדשות", journal:"יומן" }[c]||c; }
+function eventIcon(t){
+  return { TRADE_OPENED:"📈", TRADE_CLOSED:"📉", BOT_STARTED:"🤖", BOT_PAUSED:"⏸", BOT_STOPPED:"🛑", RISK_LIMIT_APPROACHING:"⚠️", RISK_LIMIT_REACHED:"🚨", LOSS_STREAK_DETECTED:"🔴", OVERTRADING_DETECTED:"⚡", NEWS_EVENT_APPROACHING:"📰", REPORT_TIME_REACHED:"📋", BROKER_DISCONNECTED:"🔌" }[t]||"•";
+}
+
+// ============================================================
+// SHARED COMPONENTS
+// ============================================================
+
+function Badge({ severity, label }){
+  const bg = { critical:"bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]", high:"bg-orange-500", warning:"bg-amber-500", info:"bg-blue-500" }[severity]||"bg-slate-500";
+  return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black text-white ${bg}`}>{label||severityLabel(severity)}</span>;
+}
+
+function StatusChip({ status }){
+  return <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold border ${statusBg(status)}`}>{statusLabel(status)}</span>;
+}
+
+function Card({ children, className="", onClick }){
+  return <div onClick={onClick} className={`bg-[#0B1F3A] border border-[rgba(148,163,184,0.13)] rounded-2xl ${className} ${onClick?"cursor-pointer hover:border-blue-500/30 transition-colors":""}`}>{children}</div>;
+}
+
+function MetricCard({ icon, label, value, sub, accent="blue", delta }){
+  const ac = { blue:"text-blue-400 border-blue-500/20 bg-blue-500/8", emerald:"text-emerald-400 border-emerald-500/20 bg-emerald-500/8", red:"text-red-400 border-red-500/20 bg-red-500/8", amber:"text-amber-400 border-amber-500/20 bg-amber-500/8", purple:"text-purple-400 border-purple-500/20 bg-purple-500/8", cyan:"text-cyan-400 border-cyan-500/20 bg-cyan-500/8" }[accent]||"text-slate-400 border-slate-500/20 bg-slate-500/8";
+  return (
+    <Card className={`p-4 border ${ac}`}>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-lg">{icon}</span>
+        {delta!==undefined && <span className={`text-[11px] font-bold ${delta>=0?"text-emerald-400":"text-red-400"}`}>{delta>=0?"+":""}{delta}%</span>}
+      </div>
+      <div className={`text-xl font-black ${ac.split(" ")[0]}`}>{value}</div>
+      <div className="text-[12px] text-slate-400 mt-0.5">{label}</div>
+      {sub && <div className="text-[11px] text-slate-500 mt-0.5">{sub}</div>}
+    </Card>
+  );
+}
+
+function RiskBar({ label, value, max, severity, unit="$" }){
+  const pct = Math.min(100, (value/max)*100);
+  const col = { critical:"bg-red-500", high:"bg-orange-500", warning:"bg-amber-500", info:"bg-blue-500" }[severity]||"bg-blue-500";
+  return (
+    <div>
+      <div className="flex justify-between text-[12px] mb-1">
+        <span className="text-slate-300">{label}</span>
+        <span className={`font-bold ${severityColor(severity)}`}>{unit}{value.toFixed(0)} / {unit}{max}</span>
+      </div>
+      <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+        <div className={`h-full rounded-full transition-all ${col}`} style={{width:`${pct}%`}}/>
+      </div>
+      <div className="text-right text-[10px] text-slate-500 mt-0.5">{pct.toFixed(0)}%</div>
+    </div>
+  );
+}
+
+function Toggle({ checked, onChange }){
+  return (
+    <label className="toggle">
+      <input type="checkbox" checked={checked} onChange={e=>onChange(e.target.checked)} />
+      <span className="slider"/>
+    </label>
+  );
+}
+
+function SectionTitle({ children, sub }){
+  return (
+    <div className="mb-4">
+      <h2 className="text-lg font-black text-white">{children}</h2>
+      {sub && <p className="text-[12px] text-slate-400 mt-0.5">{sub}</p>}
+    </div>
+  );
+}
+
+// ============================================================
+// NAV
+// ============================================================
+
+const ROUTES = [
+  { id:"dashboard", label:"לוח בקרה", icon:"🧠" },
+  { id:"alerts", label:"חריגות", icon:"⚠️" },
+  { id:"investigations", label:"חקירות", icon:"🔍" },
+  { id:"reports", label:"דוחות", icon:"📋" },
+  { id:"actions", label:"פעולות", icon:"⚡" },
+  { id:"settings", label:"הגדרות", icon:"⚙️" },
+];
+
+function AgentHeader({ route, setRoute }){
+  const openAlerts = mockAlerts.filter(a=>a.status==="open").length;
+  const pendingActs = mockActions.filter(a=>a.status==="pending_approval"||a.status==="suggested").length;
+  return (
+    <header style={{background:"#06111F", borderBottom:"1px solid rgba(148,163,184,0.10)"}} className="sticky top-0 z-50">
+      <div className="flex items-center justify-between px-6 py-3">
+        <div className="flex items-center gap-6">
+          <a href="/home-live.html?guest=1" className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-[13px]">
+            <span>←</span><span>חזרה ל-OS</span>
+          </a>
+          <div className="h-5 w-px bg-slate-700"/>
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-sm">🧠</div>
+            <div>
+              <div className="text-[13px] font-black text-white">EMPIREX AI Agent</div>
+              <div className="text-[10px] text-slate-400">סוכן בקרה חכם</div>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5 text-[12px] text-emerald-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"/>
+            <span>פעיל</span>
+          </div>
+          <div className="text-[11px] text-slate-500">FTMO · MT5 · מחובר</div>
+          {openAlerts>0 && <div className="bg-red-500/20 border border-red-500/30 text-red-400 rounded-full px-2.5 py-0.5 text-[11px] font-bold">{openAlerts} חריגות</div>}
+          {pendingActs>0 && <div className="bg-amber-500/20 border border-amber-500/30 text-amber-400 rounded-full px-2.5 py-0.5 text-[11px] font-bold">{pendingActs} ממתינות</div>}
+        </div>
+      </div>
+      <nav className="flex border-t border-slate-800/60 px-4">
+        {ROUTES.map(r=>(
+          <button key={r.id} onClick={()=>setRoute(r.id)}
+            className={`flex items-center gap-1.5 px-4 py-2.5 text-[13px] font-semibold border-b-2 transition-colors whitespace-nowrap
+              ${route===r.id ? "border-blue-500 text-blue-400" : "border-transparent text-slate-400 hover:text-slate-200"}`}>
+            <span>{r.icon}</span><span>{r.label}</span>
+            {r.id==="alerts" && openAlerts>0 && <span className="bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-black">{openAlerts}</span>}
+            {r.id==="actions" && pendingActs>0 && <span className="bg-amber-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-black">{pendingActs}</span>}
+          </button>
+        ))}
+      </nav>
+    </header>
+  );
+}
+
+// ============================================================
+// DASHBOARD PAGE
+// ============================================================
+
+function DashboardPage({ setRoute }){
+  const [chatInput, setChatInput] = useState("");
+  const [chatHistory, setChatHistory] = useState(mockChatHistory);
+  const chatEndRef = useRef(null);
+
+  const dailyLossPct = (mockAccount.dailyPnl / -mockAccount.dailyLossLimit)*100;
+  const drawdownPct = mockAccount.maxDrawdownPercent;
+  const complianceScore = Math.round(mockComplianceRules.filter(r=>r.status==="passed").length / mockComplianceRules.length * 100);
+  const openAlerts = mockAlerts.filter(a=>a.status==="open");
+  const pendingActions = mockActions.filter(a=>a.status==="pending_approval"||a.status==="suggested");
+
+  function sendChat(text){
+    if(!text.trim()) return;
+    const q = text.trim();
+    setChatInput("");
+    setChatHistory(h=>[...h, {role:"user",text:q}]);
+    setTimeout(()=>{
+      let reply = "שאלה מעניינת. בודק נתונים...";
+      if(q.includes("XAUUSD")) reply = "XAUUSD — 3 הפסדים רצופים זוהו. כרגע חשיפה של 25% מהסיכון הפעיל. ממליץ לחסום עסקאות חדשות.";
+      else if(q.includes("FTMO")) reply = "עמידה בכללי FTMO: ציון 75%. אזהרה: הפסד יומי ב-43% מהמגבלה. יש לשמור על מרווח בטיחות.";
+      else if(q.includes("בוט")) reply = "Breakout Pro v2.1 פעיל, uptime 23 ימים, win rate 68.4%. 4 פוזיציות פתוחות, P&L יומי +$213.45.";
+      else if(q.includes("סיכון")) reply = "סיכון נוכחי: 1.82% פתוח. מגבלת הפסד יומי ב-43%. מצב: אזהרה — מומלץ הפחתת סיכון.";
+      setChatHistory(h=>[...h, {role:"agent",text:reply}]);
+    }, 700);
+  }
+
+  useEffect(()=>{ chatEndRef.current?.scrollIntoView({behavior:"smooth"}); }, [chatHistory]);
+
+  return (
+    <div className="p-6 space-y-6 slide-in">
+      {/* Top stats */}
+      <div className="grid grid-cols-6 gap-4">
+        <MetricCard icon="⚠️" label="חריגות פתוחות" value={openAlerts.length} sub="3 גבוה, 2 אזהרה" accent="red"/>
+        <MetricCard icon="⚡" label="ממתינות לאישור" value={pendingActions.length} sub="2 פעולות" accent="amber"/>
+        <MetricCard icon="📊" label="P&L יומי" value={fmt$(mockAccount.dailyPnl)} sub={`${dailyLossPct.toFixed(0)}% מהמגבלה`} accent={dailyLossPct>80?"red":dailyLossPct>60?"amber":"blue"}/>
+        <MetricCard icon="🤖" label="סטטוס בוט" value="פעיל" sub={`${mockBot.tradesToday} עסקאות היום`} accent="emerald"/>
+        <MetricCard icon="🛡" label="ציון עמידה" value={`${complianceScore}%`} sub="FTMO compliance" accent={complianceScore<70?"red":complianceScore<85?"amber":"emerald"}/>
+        <MetricCard icon="📈" label="רווח כולל" value={fmt$(mockAccount.totalPnl)} sub={`${fmtPct((mockAccount.totalPnl/mockAccount.initialBalance)*100)} מהחשבון`} accent="cyan"/>
+      </div>
+
+      <div className="grid grid-cols-3 gap-5">
+        {/* Left column */}
+        <div className="space-y-5">
+          {/* Daily Briefing */}
+          <Card className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-purple-400 text-lg">🧠</span>
+                <div>
+                  <div className="text-[13px] font-black text-white">דוח יומי</div>
+                  <div className="text-[11px] text-slate-500">אתמול · {new Date(mockBriefing.previousTradingDay).toLocaleDateString("he-IL")}</div>
+                </div>
+              </div>
+              <Badge severity={mockBriefing.pnl>=0?"info":"warning"} label={mockBriefing.pnl>=0?"רווח":"הפסד"}/>
+            </div>
+            <p className="text-[12px] text-slate-300 leading-5 mb-3">{mockBriefing.greeting}</p>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              {[
+                ["P&L", fmt$(mockBriefing.pnl,2), mockBriefing.pnl>=0?"text-emerald-400":"text-red-400"],
+                ["עסקאות", mockBriefing.tradesCount, "text-blue-400"],
+                ["Win Rate", `${mockBriefing.winRate}%`, "text-cyan-400"],
+                ["Avg R", `${mockBriefing.averageR}R`, "text-purple-400"],
+              ].map(([l,v,c])=>(
+                <div key={l} className="bg-slate-800/40 rounded-lg px-3 py-2">
+                  <div className="text-[10px] text-slate-500">{l}</div>
+                  <div className={`text-[13px] font-black ${c}`}>{v}</div>
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-slate-700/50 pt-3 space-y-2">
+              <div><div className="text-[10px] text-slate-500 mb-0.5">💡 תובנה מרכזית</div><p className="text-[11px] text-slate-300">{mockBriefing.mainInsight}</p></div>
+              <div><div className="text-[10px] text-slate-500 mb-0.5">🎯 המלצה להיום</div><p className="text-[11px] text-amber-300">{mockBriefing.riskRecommendation}</p></div>
+            </div>
+            <div className="mt-3 flex gap-2">
+              <button onClick={()=>setRoute("reports")} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-lg py-1.5 transition-colors">דוח מלא</button>
+              <button className="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 text-[11px] font-bold rounded-lg py-1.5 transition-colors">יומן</button>
+            </div>
+          </Card>
+
+          {/* Compliance */}
+          <Card className="p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-[13px] font-black text-white flex items-center gap-2"><span>🛡</span>FTMO Compliance</div>
+              <span className={`text-[13px] font-black ${complianceScore>=85?"text-emerald-400":complianceScore>=70?"text-amber-400":"text-red-400"}`}>{complianceScore}%</span>
+            </div>
+            <div className="space-y-2.5">
+              {mockComplianceRules.map(r=>(
+                <div key={r.id} className="flex items-center justify-between">
+                  <div className="text-[12px] text-slate-300">{r.name}</div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-[11px] text-slate-500">{r.message.split("—")[0].trim()}</div>
+                    <span className={{passed:"✅",warning:"⚠️",failed:"❌"}[r.status]||"•"}/>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+
+        {/* Center */}
+        <div className="space-y-5">
+          {/* Risk Overview */}
+          <Card className="p-5">
+            <div className="text-[13px] font-black text-white mb-4 flex items-center gap-2">
+              <span>📊</span>סקירת סיכון
+            </div>
+            <div className="space-y-4">
+              <RiskBar label="הפסד יומי" value={Math.abs(mockAccount.dailyPnl)} max={mockAccount.dailyLossLimit} severity={dailyLossPct>=95?"critical":dailyLossPct>=80?"high":dailyLossPct>=60?"warning":"info"}/>
+              <RiskBar label="Drawdown כולל" value={mockAccount.maxDrawdownPercent} max={10} severity={mockAccount.maxDrawdownPercent>=9?"critical":mockAccount.maxDrawdownPercent>=7.5?"high":mockAccount.maxDrawdownPercent>=5?"warning":"info"} unit="%"/>
+              <RiskBar label="סיכון פתוח" value={mockAccount.openRiskPercent} max={3} severity={mockAccount.openRiskPercent>=3?"critical":mockAccount.openRiskPercent>=2?"high":mockAccount.openRiskPercent>=1?"warning":"info"} unit="%"/>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {mockPositions.slice(0,4).map(p=>(
+                <div key={p.id} className="bg-slate-800/40 rounded-lg px-3 py-2 flex items-center justify-between">
+                  <div>
+                    <div className="text-[11px] font-bold text-white">{p.symbol}</div>
+                    <div className="text-[10px] text-slate-500">{p.direction} · {p.riskPercent}%</div>
+                  </div>
+                  <div className={`text-[11px] font-bold ${p.unrealizedPnl>=0?"text-emerald-400":"text-red-400"}`}>{p.unrealizedPnl>=0?"+":""}${p.unrealizedPnl.toFixed(0)}</div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* Active Alerts */}
+          <Card className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-[13px] font-black text-white flex items-center gap-2"><span>⚠️</span>חריגות פעילות</div>
+              <button onClick={()=>setRoute("alerts")} className="text-[11px] text-blue-400 hover:text-blue-300">כל החריגות →</button>
+            </div>
+            <div className="space-y-2">
+              {openAlerts.slice(0,4).map(a=>(
+                <div key={a.id} className={`border rounded-xl px-3 py-2.5 ${severityBg(a.severity)}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <Badge severity={a.severity}/>
+                        <span className="text-[10px] text-slate-500">{catLabel(a.category)}</span>
+                      </div>
+                      <div className="text-[12px] font-bold text-white truncate">{a.title}</div>
+                    </div>
+                    <div className="text-[10px] text-slate-500 whitespace-nowrap">{relTime(a.createdAt)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* Event Log */}
+          <Card className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-[13px] font-black text-white flex items-center gap-2"><span>📝</span>לוג פעילות</div>
+            </div>
+            <div className="space-y-1.5 max-h-48 overflow-y-auto">
+              {mockEvents.map(e=>(
+                <div key={e.id} className="flex items-center gap-2 py-1.5 border-b border-slate-800/60 last:border-0">
+                  <span className="text-sm">{eventIcon(e.eventType)}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12px] text-slate-300 truncate">{e.title}</div>
+                  </div>
+                  <div className="text-[10px] text-slate-500 whitespace-nowrap">{relTime(e.createdAt)}</div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+
+        {/* Right column */}
+        <div className="space-y-5">
+          {/* Agent Chat */}
+          <Card className="p-5 flex flex-col" style={{height:"320px"}}>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-purple-400">🧠</span>
+              <div className="text-[13px] font-black text-white">שאל את הסוכן</div>
+              <span className="text-[10px] text-emerald-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"/>פעיל</span>
+            </div>
+            <div className="flex-1 overflow-y-auto space-y-2 mb-3">
+              {chatHistory.map((m,i)=>(
+                <div key={i} className={`flex ${m.role==="user"?"justify-start":"justify-end"}`}>
+                  <div className={`max-w-[85%] rounded-xl px-3 py-2 text-[12px] leading-5 ${m.role==="user"?"bg-blue-600/20 border border-blue-500/20 text-blue-100":"bg-purple-600/15 border border-purple-500/20 text-slate-200"}`}>
+                    {m.text}
+                  </div>
+                </div>
+              ))}
+              <div ref={chatEndRef}/>
+            </div>
+            <div className="flex gap-2">
+              <input value={chatInput} onChange={e=>setChatInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendChat(chatInput)} placeholder="שאל שאלה..." className="flex-1 text-[12px] py-2 px-3"/>
+              <button onClick={()=>sendChat(chatInput)} className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 text-[12px] font-bold transition-colors">שלח</button>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {["למה הבוט עצר?","סטטוס XAUUSD","דוח FTMO","סיכון פתוח"].map(q=>(
+                <button key={q} onClick={()=>sendChat(q)} className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] rounded-full px-2 py-1 transition-colors">{q}</button>
+              ))}
+            </div>
+          </Card>
+
+          {/* Pending Actions */}
+          <Card className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-[13px] font-black text-white flex items-center gap-2"><span>⚡</span>פעולות מוצעות</div>
+              <button onClick={()=>setRoute("actions")} className="text-[11px] text-blue-400 hover:text-blue-300">הכל →</button>
+            </div>
+            <div className="space-y-2">
+              {pendingActions.map(a=>(
+                <div key={a.id} className={`border rounded-xl px-3 py-3 ${a.reducesRisk?"border-blue-500/25 bg-blue-500/8":"border-red-500/25 bg-red-500/8"}`}>
+                  <div className="flex items-start justify-between mb-1.5">
+                    <div>
+                      <div className="text-[11px] text-slate-500 mb-0.5">{actionTypeLabel(a.actionType)}</div>
+                      <div className="text-[12px] font-bold text-white">{a.title}</div>
+                    </div>
+                    <Badge severity={a.severity}/>
+                  </div>
+                  <div className="flex gap-1.5 mt-2">
+                    <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-lg py-1 transition-colors">אשר</button>
+                    <button className="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-300 text-[11px] font-bold rounded-lg py-1 transition-colors">דחה</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* Bot Health */}
+          <Card className="p-5">
+            <div className="text-[13px] font-black text-white mb-3 flex items-center gap-2"><span>🤖</span>בריאות הבוט</div>
+            <div className="space-y-2">
+              {[
+                ["שם", mockBot.name],
+                ["מצב", mockBot.status==="active"?"🟢 פעיל":"🔴 עצור"],
+                ["Uptime", mockBot.uptime],
+                ["עסקאות היום", mockBot.tradesToday],
+                ["Win Rate", `${mockBot.winRate}%`],
+                ["P&L יומי", fmt$(mockBot.dailyPnl)],
+                ["מצב סיכון", mockBot.riskMode],
+              ].map(([k,v])=>(
+                <div key={k} className="flex items-center justify-between py-1 border-b border-slate-800/50 last:border-0">
+                  <span className="text-[11px] text-slate-400">{k}</span>
+                  <span className="text-[11px] font-bold text-white">{v}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// ALERTS PAGE
+// ============================================================
+
+function AlertsPage(){
+  const [filter, setFilter] = useState("all");
+  const [catFilter, setCatFilter] = useState("all");
+  const [alerts, setAlerts] = useState(mockAlerts);
+
+  const filtered = alerts.filter(a=>{
+    const sf = filter==="all"||a.severity===filter||(filter==="unresolved"&&a.status!=="resolved")||(filter==="action"&&a.actionRequired);
+    const cf = catFilter==="all"||a.category===catFilter;
+    return sf&&cf;
+  });
+
+  const counts = { critical:alerts.filter(a=>a.severity==="critical").length, high:alerts.filter(a=>a.severity==="high").length, open:alerts.filter(a=>a.status==="open").length, resolved:alerts.filter(a=>a.status==="resolved").length };
+
+  function ack(id){ setAlerts(prev=>prev.map(a=>a.id===id?{...a,status:"acknowledged"}:a)); }
+  function resolve(id){ setAlerts(prev=>prev.map(a=>a.id===id?{...a,status:"resolved",resolvedAt:new Date().toISOString()}:a)); }
+
+  return (
+    <div className="p-6 slide-in">
+      <SectionTitle sub="מרכז ניהול חריגות וסיכונים">חריגות פתוחות</SectionTitle>
+      <div className="grid grid-cols-4 gap-4 mb-6">
+        <MetricCard icon="🚨" label="קריטי" value={counts.critical} accent="red"/>
+        <MetricCard icon="⚠️" label="גבוה" value={counts.high} accent="amber"/>
+        <MetricCard icon="🔔" label="פתוחות" value={counts.open} accent="blue"/>
+        <MetricCard icon="✅" label="נסגרו היום" value={counts.resolved} accent="emerald"/>
+      </div>
+
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        <div className="flex bg-slate-800/60 rounded-xl p-1 gap-1">
+          {[["all","הכל"],["critical","קריטי"],["high","גבוה"],["warning","אזהרה"],["info","מידע"],["unresolved","לא נסגרו"],["action","נדרשת פעולה"]].map(([v,l])=>(
+            <button key={v} onClick={()=>setFilter(v)} className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-colors ${filter===v?"bg-blue-600 text-white":"text-slate-400 hover:text-white"}`}>{l}</button>
+          ))}
+        </div>
+        <div className="flex bg-slate-800/60 rounded-xl p-1 gap-1">
+          {[["all","כל קטגוריות"],["risk","סיכון"],["compliance","עמידה"],["bot","בוט"],["broker","ברוקר"],["strategy","אסטרטגיה"],["news","חדשות"]].map(([v,l])=>(
+            <button key={v} onClick={()=>setCatFilter(v)} className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-colors ${catFilter===v?"bg-purple-600 text-white":"text-slate-400 hover:text-white"}`}>{l}</button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {filtered.map(a=>(
+          <Card key={a.id} className={`p-4 border ${severityBg(a.severity)}`}>
+            <div className="flex items-start gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                  <Badge severity={a.severity}/>
+                  <span className="text-[11px] text-slate-400 bg-slate-800/60 rounded px-2 py-0.5">{catLabel(a.category)}</span>
+                  <StatusChip status={a.status}/>
+                  {a.actionRequired && <span className="text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded px-2 py-0.5">נדרשת פעולה</span>}
+                </div>
+                <h3 className="text-[14px] font-black text-white mb-1">{a.title}</h3>
+                <p className="text-[12px] text-slate-300 leading-5">{a.message}</p>
+                {a.suggestedAction && <div className="mt-2 text-[11px] text-blue-400">פעולה מוצעת: {actionTypeLabel(a.suggestedAction)}</div>}
+              </div>
+              <div className="flex flex-col items-end gap-2 shrink-0">
+                <div className="text-[11px] text-slate-500">{relTime(a.createdAt)}</div>
+                {a.status!=="resolved" && (
+                  <div className="flex gap-1.5 mt-2">
+                    {a.status==="open" && <button onClick={()=>ack(a.id)} className="bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/30 text-amber-400 text-[11px] font-bold rounded-lg px-3 py-1.5 transition-colors">אשר קבלה</button>}
+                    <button onClick={()=>resolve(a.id)} className="bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold rounded-lg px-3 py-1.5 transition-colors">סגור</button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </Card>
+        ))}
+        {filtered.length===0 && <div className="text-center py-16 text-slate-500 text-sm">אין חריגות התואמות את הסינון</div>}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// INVESTIGATIONS PAGE
+// ============================================================
+
+function InvestigationsPage(){
+  const [selected, setSelected] = useState(mockInvestigations[0]);
+
+  const statusBadge = (s)=>({
+    open:<span className="text-[11px] text-blue-400 bg-blue-500/15 border border-blue-500/25 rounded-full px-2 py-0.5">פתוח</span>,
+    in_progress:<span className="text-[11px] text-amber-400 bg-amber-500/15 border border-amber-500/25 rounded-full px-2 py-0.5">בטיפול</span>,
+    completed:<span className="text-[11px] text-emerald-400 bg-emerald-500/15 border border-emerald-500/25 rounded-full px-2 py-0.5">הושלם</span>,
+  }[s]||s);
+
+  return (
+    <div className="p-6 slide-in flex gap-5">
+      {/* List */}
+      <div className="w-80 shrink-0 space-y-3">
+        <SectionTitle>חקירות</SectionTitle>
+        {mockInvestigations.map(inv=>(
+          <Card key={inv.id} onClick={()=>setSelected(inv)}
+            className={`p-4 transition-all ${selected?.id===inv.id?"border-blue-500/50 bg-blue-500/5":""}`}>
+            <div className="flex items-start justify-between mb-2">
+              <Badge severity={inv.severity}/>
+              {statusBadge(inv.status)}
+            </div>
+            <div className="text-[13px] font-black text-white mb-1">{inv.title}</div>
+            <div className="text-[11px] text-slate-400 mb-2">{inv.triggerReason}</div>
+            <div className="text-[10px] text-slate-500">{relTime(inv.createdAt)}</div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Detail */}
+      {selected && (
+        <div className="flex-1 min-w-0 space-y-5">
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Badge severity={selected.severity}/>
+                {statusBadge(selected.status)}
+              </div>
+              <h1 className="text-xl font-black text-white">{selected.title}</h1>
+              <div className="text-[12px] text-slate-400 mt-0.5">טריגר: {selected.triggerReason}</div>
+            </div>
+            <div className="text-[11px] text-slate-500">{relTime(selected.createdAt)}</div>
+          </div>
+
+          {/* Timeline */}
+          <Card className="p-5">
+            <div className="text-[13px] font-black text-white mb-4">ציר זמן</div>
+            <div className="space-y-0">
+              {selected.timeline.map((t,i)=>(
+                <div key={i} className="flex gap-4 relative">
+                  <div className="flex flex-col items-center">
+                    <div className="w-2.5 h-2.5 rounded-full bg-blue-500 border-2 border-blue-400 shrink-0 mt-0.5 z-10"/>
+                    {i<selected.timeline.length-1&&<div className="w-px flex-1 bg-slate-700 my-1"/>}
+                  </div>
+                  <div className={`pb-4 ${i===selected.timeline.length-1?"pb-0":""}`}>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-[11px] font-black text-blue-400">{t.time}</span>
+                      <span className="text-[12px] font-bold text-white">{t.title}</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400">{t.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <div className="grid grid-cols-2 gap-5">
+            {/* Checks */}
+            <Card className="p-5">
+              <div className="text-[13px] font-black text-white mb-3">בדיקות שבוצעו</div>
+              <div className="space-y-1.5">
+                {selected.checksPerformed.map((c,i)=>(
+                  <div key={i} className="flex items-center gap-2 text-[12px] text-slate-300">
+                    <span className="text-emerald-400 text-xs">✓</span>{c}
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* Findings */}
+            <Card className="p-5">
+              <div className="text-[13px] font-black text-white mb-3">ממצאים</div>
+              <div className="space-y-3">
+                {selected.findings.map((f,i)=>(
+                  <div key={i} className={`rounded-xl p-3 border ${f.impact==="high"?"border-red-500/25 bg-red-500/8":f.impact==="medium"?"border-amber-500/25 bg-amber-500/8":"border-blue-500/20 bg-blue-500/8"}`}>
+                    <div className="text-[12px] font-bold text-white mb-0.5">{f.title}</div>
+                    <div className="text-[11px] text-slate-400">{f.description}</div>
+                  </div>
+                ))}
+                {selected.findings.length===0&&<div className="text-[12px] text-slate-500">בבדיקה...</div>}
+              </div>
+            </Card>
+          </div>
+
+          {/* Root cause + Conclusion */}
+          <Card className="p-5">
+            <div className="grid grid-cols-2 gap-5">
+              <div>
+                <div className="text-[13px] font-black text-white mb-2">סיבת שורש</div>
+                <p className="text-[12px] text-slate-300 leading-5">{selected.rootCause}</p>
+              </div>
+              <div>
+                <div className="text-[13px] font-black text-white mb-2">מסקנה</div>
+                <p className="text-[12px] text-slate-300 leading-5">{selected.conclusion}</p>
+              </div>
+            </div>
+          </Card>
+
+          {/* Actions */}
+          {selected.recommendedActions.length>0&&(
+            <Card className="p-5">
+              <div className="text-[13px] font-black text-white mb-3">פעולות מומלצות</div>
+              <div className="flex gap-3 flex-wrap">
+                {selected.recommendedActions.map((a,i)=>(
+                  <button key={i} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12px] font-bold border transition-colors ${a.requiresApproval?"border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20":"border-blue-500/30 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20"}`}>
+                    {a.requiresApproval&&<span className="text-[10px]">🔐</span>}
+                    {a.label}
+                  </button>
+                ))}
+              </div>
+            </Card>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// REPORTS PAGE
+// ============================================================
+
+function ReportsPage(){
+  const [selected, setSelected] = useState(mockReports[0]);
+
+  const typeIcon = { daily:"📅", weekly:"📊", monthly:"📈", risk:"⚠️", bot:"🤖", strategy:"🎯", compliance:"🛡" };
+  const typeLabel = { daily:"יומי", weekly:"שבועי", monthly:"חודשי", risk:"סיכון", bot:"בוט", strategy:"אסטרטגיה", compliance:"עמידה" };
+
+  return (
+    <div className="p-6 slide-in flex gap-5">
+      {/* List */}
+      <div className="w-72 shrink-0 space-y-3">
+        <SectionTitle>דוחות</SectionTitle>
+        {mockReports.map(r=>(
+          <Card key={r.id} onClick={()=>setSelected(r)}
+            className={`p-4 transition-all cursor-pointer ${selected?.id===r.id?"border-blue-500/50 bg-blue-500/5":""}`}>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xl">{typeIcon[r.reportType]||"📋"}</span>
+              <span className="text-[11px] text-slate-400 bg-slate-800/60 rounded px-2 py-0.5">{typeLabel[r.reportType]||r.reportType}</span>
+            </div>
+            <div className="text-[13px] font-black text-white mb-1">{r.title}</div>
+            <div className="text-[11px] text-slate-400 mb-1">{r.summary.substring(0,60)}...</div>
+            <div className="text-[10px] text-slate-500">{new Date(r.periodStart).toLocaleDateString("he-IL")}</div>
+          </Card>
+        ))}
+        <button className="w-full border border-blue-500/30 bg-blue-500/8 text-blue-400 rounded-xl py-2.5 text-[12px] font-bold hover:bg-blue-500/15 transition-colors">
+          + צור דוח חדש
+        </button>
+      </div>
+
+      {/* Detail */}
+      {selected && (
+        <div className="flex-1 min-w-0 space-y-5">
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-2xl">{typeIcon[selected.reportType]||"📋"}</span>
+                <span className="text-[12px] text-slate-400 bg-slate-800/60 rounded px-2 py-0.5">{typeLabel[selected.reportType]||selected.reportType}</span>
+              </div>
+              <h1 className="text-xl font-black text-white">{selected.title}</h1>
+              <div className="text-[12px] text-slate-400 mt-1">{new Date(selected.periodStart).toLocaleDateString("he-IL")} — {new Date(selected.periodEnd).toLocaleDateString("he-IL")}</div>
+            </div>
+            <div className="flex gap-2">
+              <button className="border border-slate-600 text-slate-300 rounded-xl px-4 py-2 text-[12px] font-bold hover:bg-slate-700 transition-colors">ייצא PDF</button>
+              <button className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 py-2 text-[12px] font-bold transition-colors">שלח דוח</button>
+            </div>
+          </div>
+
+          {/* Summary */}
+          <Card className="p-5">
+            <div className="text-[13px] font-black text-white mb-2">סיכום</div>
+            <p className="text-[13px] text-slate-300 leading-6">{selected.summary}</p>
+          </Card>
+
+          {/* Metrics */}
+          <div className="grid grid-cols-6 gap-4">
+            {[
+              ["P&L", fmt$(selected.metrics.pnl), selected.metrics.pnl>=0?"emerald":"red"],
+              ["עסקאות", selected.metrics.trades, "blue"],
+              ["Win Rate", `${selected.metrics.winRate}%`, "cyan"],
+              ["Avg R", `${selected.metrics.averageR}R`, "purple"],
+              ["Drawdown", `${selected.metrics.drawdown}%`, selected.metrics.drawdown>7?"red":selected.metrics.drawdown>4?"amber":"emerald"],
+              ["סיכון שנוצל", `${selected.metrics.riskUsed}%`, selected.metrics.riskUsed>80?"red":selected.metrics.riskUsed>60?"amber":"blue"],
+            ].map(([l,v,a])=>(
+              <MetricCard key={l} label={l} value={v} accent={a}/>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-3 gap-5">
+            {/* Insights */}
+            <Card className="p-5">
+              <div className="text-[13px] font-black text-white mb-3 flex items-center gap-2"><span>💡</span>תובנות</div>
+              <div className="space-y-2">
+                {selected.insights.map((ins,i)=>(
+                  <div key={i} className="flex items-start gap-2 text-[12px] text-slate-300">
+                    <span className="text-blue-400 mt-0.5">›</span>{ins}
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* Anomalies */}
+            <Card className="p-5">
+              <div className="text-[13px] font-black text-white mb-3 flex items-center gap-2"><span>⚠️</span>חריגות</div>
+              <div className="space-y-2">
+                {selected.anomalies.length>0 ? selected.anomalies.map((an,i)=>(
+                  <div key={i} className="flex items-start gap-2 text-[12px] text-amber-300 bg-amber-500/10 rounded-lg px-3 py-2">
+                    <span>⚠</span>{an}
+                  </div>
+                )) : <div className="text-[12px] text-slate-500">לא זוהו חריגות</div>}
+              </div>
+            </Card>
+
+            {/* Recommendations */}
+            <Card className="p-5">
+              <div className="text-[13px] font-black text-white mb-3 flex items-center gap-2"><span>🎯</span>המלצות</div>
+              <div className="space-y-2">
+                {selected.recommendedActions.map((r,i)=>(
+                  <div key={i} className="flex items-start gap-2 text-[12px] text-slate-300">
+                    <span className="text-emerald-400 font-black">{i+1}.</span>{r}
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// ACTIONS PAGE
+// ============================================================
+
+function ActionsPage(){
+  const [actions, setActions] = useState(mockActions);
+  const [tab, setTab] = useState("pending");
+
+  function approve(id){ setActions(prev=>prev.map(a=>a.id===id?{...a,status:"executed",executedAt:new Date().toISOString()}:a)); }
+  function reject(id){ setActions(prev=>prev.map(a=>a.id===id?{...a,status:"rejected"}:a)); }
+
+  const pending = actions.filter(a=>["pending_approval","suggested"].includes(a.status));
+  const executed = actions.filter(a=>a.status==="executed");
+  const rejected = actions.filter(a=>a.status==="rejected");
+  const list = tab==="pending"?pending:tab==="executed"?executed:rejected;
+
+  return (
+    <div className="p-6 slide-in">
+      <SectionTitle sub="ניהול פעולות מוצעות, ממתינות ומבוצעות">מרכז פעולות</SectionTitle>
+
+      {/* Policy card */}
+      <Card className="p-4 mb-6 border-blue-500/20 bg-blue-500/5">
+        <div className="flex items-start gap-3">
+          <span className="text-blue-400 text-lg mt-0.5">🛡</span>
+          <div>
+            <div className="text-[13px] font-black text-white mb-1">מדיניות פעולות סוכן</div>
+            <p className="text-[12px] text-slate-400">כל פעולה שמגדילה סיכון דורשת אישור ידני. פעולות שמקטינות סיכון יכולות להתבצע אוטומטית רק אם הוגדר כלל מראש. עצירת בוט אוטומטית מותרת רק לאירועי סיכון קריטי. חידוש בוט דורש אישור תמיד.</p>
+          </div>
+        </div>
+      </Card>
+
+      <div className="flex items-center gap-2 mb-5">
+        {[["pending",`ממתינות (${pending.length})`],["executed",`בוצעו (${executed.length})`],["rejected",`נדחו (${rejected.length})`]].map(([v,l])=>(
+          <button key={v} onClick={()=>setTab(v)} className={`px-4 py-2 rounded-xl text-[13px] font-bold transition-colors ${tab===v?"bg-blue-600 text-white":"bg-slate-800/60 text-slate-400 hover:text-white"}`}>{l}</button>
+        ))}
+      </div>
+
+      <div className="space-y-3">
+        {list.map(a=>(
+          <Card key={a.id} className={`p-5 border ${a.reducesRisk&&!a.increasesRisk?"border-blue-500/20":a.increasesRisk?"border-red-500/25":a.status==="rejected"?"border-slate-600/30":"border-slate-700/30"}`}>
+            <div className="flex items-start gap-5">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0 ${a.reducesRisk?"bg-blue-500/15":"a.increasesRisk"?"bg-red-500/15":"bg-slate-700/40"}`}>
+                {{"PAUSE_BOT":"⏸","RESUME_BOT":"▶️","BLOCK_SYMBOL":"🚫","REDUCE_RISK_MODE":"📉","CREATE_JOURNAL_NOTE":"📝","SEND_NOTIFICATION":"🔔","CREATE_INVESTIGATION":"🔍","REQUIRE_USER_CONFIRMATION":"🔐"}[a.actionType]||"⚡"}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <span className="text-[11px] text-slate-400 bg-slate-800/60 rounded px-2 py-0.5">{actionTypeLabel(a.actionType)}</span>
+                  <Badge severity={a.severity}/>
+                  <StatusChip status={a.status}/>
+                  {a.reducesRisk&&<span className="text-[10px] text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded px-2 py-0.5">מקטין סיכון</span>}
+                  {a.increasesRisk&&<span className="text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 rounded px-2 py-0.5">מגדיל סיכון — נדרש אישור</span>}
+                </div>
+                <h3 className="text-[14px] font-black text-white mb-1">{a.title}</h3>
+                <p className="text-[12px] text-slate-400">{a.description}</p>
+                {a.executedAt&&<div className="text-[11px] text-slate-500 mt-1">בוצע: {relTime(a.executedAt)}</div>}
+              </div>
+              <div className="flex flex-col items-end gap-2 shrink-0">
+                <div className="text-[11px] text-slate-500">{relTime(a.createdAt)}</div>
+                {["pending_approval","suggested"].includes(a.status)&&(
+                  <div className="flex gap-2 mt-1">
+                    <button onClick={()=>approve(a.id)} className="bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-lg px-4 py-2 transition-colors">אשר ובצע</button>
+                    <button onClick={()=>reject(a.id)} className="bg-slate-700 hover:bg-slate-600 text-slate-300 text-[11px] font-bold rounded-lg px-4 py-2 transition-colors">דחה</button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </Card>
+        ))}
+        {list.length===0&&<div className="text-center py-16 text-slate-500 text-sm">אין פעולות להצגה</div>}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// SETTINGS PAGE
+// ============================================================
+
+function SettingsPage(){
+  const [s, setS] = useState(mockSettings);
+  const set = (k,v)=>setS(prev=>({...prev,[k]:v}));
+
+  function Section({ title, children }){
+    return (
+      <Card className="p-6 mb-4">
+        <div className="text-[14px] font-black text-white mb-4 border-b border-slate-700/50 pb-3">{title}</div>
+        {children}
+      </Card>
+    );
+  }
+  function Row({ label, sub, children }){
+    return (
+      <div className="flex items-center justify-between py-3 border-b border-slate-800/50 last:border-0">
+        <div>
+          <div className="text-[13px] text-slate-200">{label}</div>
+          {sub&&<div className="text-[11px] text-slate-500 mt-0.5">{sub}</div>}
+        </div>
+        {children}
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 slide-in max-w-3xl">
+      <SectionTitle sub="הגדרות סוכן הבקרה וניהול הרשאות">הגדרות סוכן</SectionTitle>
+
+      <Section title="📅 הגדרות דוח יומי">
+        <Row label="הפעל דוח יומי אוטומטי"><Toggle checked={s.briefingEnabled} onChange={v=>set("briefingEnabled",v)}/></Row>
+        <Row label="שעת דוח יומי" sub="הדוח ייוצר בשעה זו בכל בוקר">
+          <input type="time" value={s.briefingTime} onChange={e=>set("briefingTime",e.target.value)} className="w-28 text-center"/>
+        </Row>
+        <Row label="הצג בלוח הבקרה"><Toggle checked={s.briefingOnDashboard} onChange={v=>set("briefingOnDashboard",v)}/></Row>
+        <Row label="שלח Push Notification"><Toggle checked={s.briefingPush} onChange={v=>set("briefingPush",v)}/></Row>
+        <Row label="כלול ביצועי בוט בדוח"><Toggle checked={s.briefingIncludeBot} onChange={v=>set("briefingIncludeBot",v)}/></Row>
+        <Row label="כלול המלצת סיכון"><Toggle checked={s.briefingIncludeRisk} onChange={v=>set("briefingIncludeRisk",v)}/></Row>
+      </Section>
+
+      <Section title="⚠️ סף התראות">
+        {[
+          ["אזהרה — הפסד יומי (%)", "dailyLossWarning", 0, 100],
+          ["גבוה — הפסד יומי (%)", "dailyLossHigh", 0, 100],
+          ["קריטי — הפסד יומי (%)", "dailyLossCritical", 0, 100],
+          ["אזהרה — Drawdown (%)", "drawdownWarning", 0, 100],
+          ["סיכון פתוח מקסימלי (%)", "openRiskMax", 0, 10],
+          ["ספגת מסחר יתר (עסקאות לסשן)", "overtradingThreshold", 1, 20],
+          ["ספגת רצף הפסדים", "lossStreakThreshold", 1, 10],
+        ].map(([label, key, min, max])=>(
+          <Row key={key} label={label}>
+            <div className="flex items-center gap-3">
+              <input type="range" min={min} max={max} value={s[key]} onChange={e=>set(key,+e.target.value)} className="w-24 accent-blue-500"/>
+              <span className="text-[13px] font-black text-blue-400 w-8 text-center">{s[key]}</span>
+            </div>
+          </Row>
+        ))}
+      </Section>
+
+      <Section title="🔐 הרשאות סוכן">
+        {[
+          ["יצירת התראות אוטומטית","canAutoAlerts",""],
+          ["יצירת הערות יומן אוטומטית","canAutoJournal",""],
+          ["פתיחת חקירות אוטומטית","canAutoInvestigation",""],
+          ["עצירת בוט בסיכון קריטי","canPauseBotCritical","רק לאירועים קריטיים"],
+          ["חסימת נכסים בסיכון קריטי","canBlockSymbolCritical",""],
+          ["חידוש בוט — אישור ידני בלבד","canResumeOnlyApproval","לא ניתן לשנות"],
+          ["שינוי אסטרטגיה — אישור ידני","canChangeStrategyApproval",""],
+          ["הגדלת סיכון — אף פעם אוטומטי","canIncreaseRiskNever","מדיניות קבועה"],
+        ].map(([label, key, sub])=>(
+          <Row key={key} label={label} sub={sub||undefined}>
+            <Toggle checked={s[key]} onChange={v=>set(key,v)}/>
+          </Row>
+        ))}
+      </Section>
+
+      <Section title="🔔 ערוצי התראות">
+        {[
+          ["בתוך האפליקציה","notifyInApp",true,false],
+          ["אימייל","notifyEmail",false,true],
+          ["Push Notification","notifyPush",false,true],
+          ["WhatsApp / Telegram","notifyTelegram",false,true],
+        ].map(([label, key, enabled, comingSoon])=>(
+          <Row key={key} label={label} sub={comingSoon?"בקרוב":undefined}>
+            {comingSoon
+              ? <span className="text-[11px] text-slate-500 bg-slate-800 rounded px-2 py-1">בקרוב</span>
+              : <Toggle checked={s[key]} onChange={v=>set(key,v)}/>}
+          </Row>
+        ))}
+      </Section>
+
+      <Section title="🤖 מדיניות בטיחות בוט">
+        {[
+          ["עצור בוט בהפסד יומי קריטי","pauseBotCriticalLoss",""],
+          ["חסום עסקאות חדשות קרוב למגבלת הפסד","blockTradesNearMax",""],
+          ["הפחת סיכון לאחר רצף הפסדים","reduceRiskAfterStreak",""],
+          ["חסום נכס לאחר הפסדים חוזרים","blockSymbolAfterLosses",""],
+          ["בטל אסטרטגיה לאחר ביצועים חלשים","disableStrategyUnderperform","דורש אישור ידני"],
+        ].map(([label, key, sub])=>(
+          <Row key={key} label={label} sub={sub||undefined}>
+            <Toggle checked={s[key]} onChange={v=>set(key,v)}/>
+          </Row>
+        ))}
+      </Section>
+
+      <div className="flex gap-3">
+        <button className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-6 py-2.5 text-[13px] font-black transition-colors">שמור הגדרות</button>
+        <button className="bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-xl px-6 py-2.5 text-[13px] font-bold transition-colors">אפס ברירות מחדל</button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// APP ROOT
+// ============================================================
+
+function App(){
+  const [route, setRoute] = useState("dashboard");
+  const pageMap = {
+    dashboard: <DashboardPage setRoute={setRoute}/>,
+    alerts: <AlertsPage/>,
+    investigations: <InvestigationsPage/>,
+    reports: <ReportsPage/>,
+    actions: <ActionsPage/>,
+    settings: <SettingsPage/>,
+  };
+  return (
+    <div style={{minHeight:"100vh", background:"linear-gradient(160deg, #06111F 0%, #081A33 60%, #06111F 100%)"}}>
+      <AgentHeader route={route} setRoute={setRoute}/>
+      <main>{pageMap[route]||pageMap.dashboard}</main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>

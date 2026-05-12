@@ -1,0 +1,834 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EMPIREX OS - React Live</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+
+<body class="bg-slate-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useMemo, useState } = React;
+
+        const iconPaths = {
+            arrow: "M5 12h14 M13 5l7 7-7 7",
+            activity: "M22 12h-4l-3 9L9 3l-3 9H2",
+            chart: "M4 19V5 M4 19h16 M8 16v-5 M12 16V8 M16 16v-9",
+            bot: "M12 2v4 M8 6h8a4 4 0 0 1 4 4v5a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4v-5a4 4 0 0 1 4-4Z M9 12h.01 M15 12h.01 M9 17v2 M15 17v2",
+            brain: "M9 3a3 3 0 0 0-3 3v1a4 4 0 0 0 0 8v1a3 3 0 0 0 3 3h1V3H9Z M15 3a3 3 0 0 1 3 3v1a4 4 0 0 1 0 8v1a3 3 0 0 1-3 3h-1V3h1Z",
+            database: "M4 6c0-2 4-4 8-4s8 2 8 4-4 4-8 4-8-2-8-4Z M4 6v6c0 2 4 4 8 4s8-2 8-4V6 M4 12v6c0 2 4 4 8 4s8-2 8-4v-6",
+            layers: "M12 2 2 7l10 5 10-5-10-5Z M2 12l10 5 10-5 M2 17l10 5 10-5",
+            lock: "M6 10V8a6 6 0 0 1 12 0v2 M5 10h14v11H5V10Z M12 15v2",
+            network: "M12 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z M5 15a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z M19 15a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z M10 8l-3 7 M14 8l3 7 M8 18h8",
+            shield: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z M9 12l2 2 4-5",
+            terminal: "M4 5h16v14H4V5Z M7 9l3 3-3 3 M12 15h5",
+            wallet: "M4 7h15a2 2 0 0 1 2 2v10H4a2 2 0 0 1-2-2V7a3 3 0 0 1 3-3h13 M16 13h5 M18 13h.01",
+            zap: "M13 2 3 14h8l-1 8 11-14h-8l1-8Z",
+            sparkle: "M12 2 13.7 8.3 20 10l-6.3 1.7L12 18l-1.7-6.3L4 10l6.3-1.7L12 2Z",
+            search: "M11 19a8 8 0 1 1 5.3-14l4.2 4.2",
+            bell: "M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5 M10 21h4",
+            settings: "M12 14a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z M12 2v3 M12 21v1 M4.9 4.9l2.1 2.1 M17 17l2.1 2.1 M2 12h3 M19 12h3 M4.9 19.1 7 17 M17 7l2.1-2.1",
+            globe: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z M2 12h20 M12 2c3 3 4 6 4 10s-1 7-4 10c-3-3-4-6-4-10s1-7 4-10Z",
+            check: "M20 6 9 17l-5-5",
+            route: "M4 5h5a5 5 0 0 1 5 5v4a5 5 0 0 0 5 5h1 M16 5h4v4 M16 19h4v-4",
+        };
+
+        function Icon({ name, className = "h-5 w-5" }) {
+            return (
+                <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d={iconPaths[name] || iconPaths.activity} />
+                </svg>
+            );
+        }
+
+        function EmpirexMark({ className = "h-20 w-20" }) {
+            return (
+                <svg className={className} viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <defs>
+                        <linearGradient id="empirexGradientA" x1="35" y1="20" x2="132" y2="137" gradientUnits="userSpaceOnUse">
+                            <stop stopColor="#121B82" />
+                            <stop offset="0.45" stopColor="#2739B7" />
+                            <stop offset="1" stopColor="#12D7D1" />
+                        </linearGradient>
+                        <filter id="softShadow" x="0" y="0" width="160" height="160" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
+                            <feDropShadow dx="0" dy="16" stdDeviation="16" floodColor="#07124A" floodOpacity="0.12" />
+                        </filter>
+                    </defs>
+                    <g filter="url(#softShadow)">
+                        <path d="M32 54L56 40V96L82 113L128 83V106L82 137L32 104V54Z" fill="url(#empirexGradientA)" />
+                        <path d="M64 34L88 20V58L64 72V34Z" fill="url(#empirexGradientA)" />
+                        <path d="M96 20L120 6V64L96 78V20Z" fill="url(#empirexGradientA)" />
+                        <path d="M64 90L120 55L141 68L84 104L64 90Z" fill="url(#empirexGradientA)" />
+                        <path d="M88 114L141 82V103L109 122H88V114Z" fill="url(#empirexGradientA)" />
+                    </g>
+                </svg>
+            );
+        }
+
+        const systemPillars = [
+            {
+                icon: "brain",
+                title: "Market Brain",
+                subtitle: "שכבת הבנת שוק",
+                text: "מרכז נתונים וסיגנלים שמחבר market data, מבנה שוק, ICT/SMC, נזילות, watchlists וחיפוש סמלים למסך קבלת החלטות אחד.",
+            },
+            {
+                icon: "zap",
+                title: "Trading Engine",
+                subtitle: "שכבת ביצוע ושליטה",
+                text: "מנוע שמנהל איתותים, עסקאות, SL/TP, חישוב סיכון, TradingView webhooks, Order Management וחיבורי ביצוע כמו MT5 Bridge.",
+            },
+            {
+                icon: "bot",
+                title: "Automation Layer",
+                subtitle: "שכבת פעולות אוטומטיות",
+                text: "Framework לבוטים, webhooks, automation builder, Celery scheduler, alerts, backtesting ו־guardrails לחשבונות ממומנים.",
+            },
+            {
+                icon: "sparkle",
+                title: "AI Agent",
+                subtitle: "שכבת עוזר אישי",
+                text: "סוכן Claude אישי לכל משתמש עם זיכרון וקטורי, LangGraph orchestration, streaming chat וכלי ניתוח לשוק, סיכון ותיק השקעות.",
+            },
+            {
+                icon: "chart",
+                title: "Trade Journal",
+                subtitle: "שכבת למידה ובקרה",
+                text: "יומן מסחר עם עסקאות, רגשות, הערות, screenshots, win rate, average R:R, streaks, calendar heatmap ו־equity curve.",
+            },
+            {
+                icon: "wallet",
+                title: "Portfolio Core",
+                subtitle: "שכבת הון והשקעות",
+                text: "בניית תיקים, מעקב פוזיציות, allocation, snapshots, Sharpe, drawdown, ביצועים והשוואה מול מדדים כמו S&P 500, BTC וזהב.",
+            },
+            {
+                icon: "shield",
+                title: "Risk Engine",
+                subtitle: "שכבת משמעת וסיכון",
+                text: "מנוע סיכון שמחשב risk/reward, חשיפה, drawdown alerts, מגבלות funded accounts ומונע החלטות לא מבוקרות בזמן אמת.",
+            },
+            {
+                icon: "layers",
+                title: "Operating Layer",
+                subtitle: "שכבת מוצר מלאה",
+                text: "Dashboard, profile, settings, notifications, PWA mobile-first, billing, onboarding, permissions ו־deployment pipeline למוצר שמוכן לגדול.",
+            },
+        ];
+
+        const stack = [
+            ["Frontend", "React 18", "TypeScript", "Vite", "Tailwind", "Zustand", "TanStack Query"],
+            ["Backend", "FastAPI", "Python 3.11+", "JWT", "WebSocket", "Celery", "OpenAPI"],
+            ["Data", "Supabase", "PostgreSQL 15", "TimescaleDB", "Redis 7", "ChromaDB", "RLS"],
+            ["AI", "Claude", "LangGraph", "Vector Memory", "Tool Use", "SSE", "Trading Coach"],
+        ];
+
+        const roadmap = [
+            ["01", "Foundation", "Monorepo, auth, design system, Docker, CI/CD, Supabase RLS"],
+            ["02", "Core Platform", "Dashboard, charts, watchlists, live feeds, search, notifications, cache"],
+            ["03", "Trading Engine", "Signals, order management, risk calculator, journal, P&L analytics, MT5 bridge"],
+            ["04", "Automation", "Bots, webhooks, automation builder, scheduler, backtest runner, compliance guard"],
+            ["05", "AI Agent", "Claude agent, Chroma memory, LangGraph, tools, portfolio recommendations, coach mode"],
+            ["06", "Portfolio + Launch", "Portfolio builder, tracking, Stripe, onboarding, PWA polish, security audit"],
+        ];
+
+        const proofPoints = [
+            "Unified cockpit instead of fragmented tools",
+            "Real-time execution layer",
+            "Per-user AI memory",
+            "Journal analytics loop",
+            "Portfolio tracking layer",
+            "Risk guardrails by design",
+        ];
+
+        function ProductMockup() {
+            const tabs = ["Dashboard", "Markets", "Trading", "Automation", "AI Agent", "Journal", "Portfolio", "Risk"];
+            const flow = [
+                ["Signal", "Generated", "09:41:21.301"],
+                ["Risk", "Approved", "09:41:21.305"],
+                ["Order", "Sent", "09:41:21.307"],
+                ["Fill", "Confirmed", "09:41:21.318"],
+                ["Journal", "Updated", "09:41:21.322"],
+            ];
+
+            return (
+                <div dir="ltr" className="relative w-full rounded-[32px] border border-white/80 bg-white/90 p-3 shadow-[0_36px_110px_rgba(7,18,74,.18)] backdrop-blur-xl">
+                    <div className="overflow-hidden rounded-[24px] border border-slate-100 bg-[#F7FAFF]">
+                        <div className="border-b border-slate-100 bg-white px-5 py-4">
+                            <div className="flex flex-wrap items-center justify-between gap-4">
+                                <div className="flex items-center gap-4">
+                                    <EmpirexMark className="h-9 w-9" />
+                                    <div>
+                                        <div className="text-sm font-black tracking-[0.18em] text-[#07124A]">EMPIREX OS</div>
+                                        <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Trading command center</div>
+                                    </div>
+                                </div>
+                                <div className="hidden items-center gap-2 xl:flex">
+                                    {tabs.map((tab, index) => (
+                                        <span key={tab} className={`rounded-xl px-3.5 py-2 text-xs font-black ${index === 0 ? "bg-[#07124A] text-white" : "bg-slate-50 text-slate-500"}`}>{tab}</span>
+                                    ))}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="hidden h-9 w-64 items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 text-xs font-semibold text-slate-400 md:flex">
+                                        <Icon name="search" className="h-4 w-4" />
+                                        Search symbols, tools, agents...
+                                    </div>
+                                    <div className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 bg-white text-slate-500"><Icon name="bell" className="h-4 w-4" /></div>
+                                    <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-[#0D1C73] to-[#16D3D1] text-xs font-black text-white">D</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-5">
+                            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <h3 className="text-2xl font-black tracking-[-0.04em] text-[#07124A]">Executive Trading Cockpit</h3>
+                                    <p className="mt-1 text-sm font-semibold text-slate-500">Signal → Risk → Execution → Journal → Portfolio</p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <span className="rounded-full bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-600">Market Live</span>
+                                    <span className="rounded-full bg-cyan-50 px-4 py-2 text-xs font-black text-cyan-600">12.6ms avg</span>
+                                </div>
+                            </div>
+
+                            <div className="grid gap-3 md:grid-cols-5">
+                                {[
+                                    ["Total P&L", "$34,586", "+1.32%"],
+                                    ["Total Return", "$573,214", "+21.89%"],
+                                    ["Win Rate", "68.4%", "+4.21%"],
+                                    ["Risk Used", "0.75%", "Per trade"],
+                                    ["Active Bots", "24", "Online"],
+                                ].map(([label, value, note]) => (
+                                    <div key={label} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+                                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{label}</p>
+                                        <p className="mt-2 text-xl font-black text-[#07124A]">{value}</p>
+                                        <p className="mt-1 text-xs font-black text-emerald-500">{note}</p>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="mt-4 grid gap-4 lg:grid-cols-[1.38fr_1fr]">
+                                <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                                    <div className="mb-4 flex items-center justify-between">
+                                        <h4 className="font-black text-[#07124A]">Execution Performance</h4>
+                                        <span className="text-xs font-black text-emerald-500">-18.7% latency</span>
+                                    </div>
+                                    <div className="relative h-48 overflow-hidden rounded-2xl bg-gradient-to-b from-cyan-50 to-white">
+                                        <svg viewBox="0 0 560 200" className="h-full w-full">
+                                            <path d="M0 145 C55 80 105 112 165 84 S275 165 335 119 S450 80 560 130" fill="none" stroke="#16B3F0" strokeWidth="4" />
+                                            <path d="M0 145 C55 80 105 112 165 84 S275 165 335 119 S450 80 560 130 L560 200 L0 200Z" fill="url(#executionFill)" opacity=".28" />
+                                            <defs>
+                                                <linearGradient id="executionFill" x1="0" x2="0" y1="0" y2="1">
+                                                    <stop offset="0%" stopColor="#19B7F2" />
+                                                    <stop offset="100%" stopColor="#FFFFFF" />
+                                                </linearGradient>
+                                            </defs>
+                                        </svg>
+                                    </div>
+                                </div>
+
+                                <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                                    <h4 className="mb-4 font-black text-[#07124A]">Order Routing</h4>
+                                    <div className="grid grid-cols-[118px_1fr] items-center gap-4">
+                                        <div className="grid h-28 w-28 place-items-center rounded-full bg-[conic-gradient(#2338BA_0_44%,#1E67F5_44%_74%,#19B7F2_74%_89%,#17D6D2_89%_100%)]">
+                                            <div className="grid h-16 w-16 place-items-center rounded-full bg-white text-center text-xs font-black text-[#07124A]">512<br />Orders</div>
+                                        </div>
+                                        <div className="space-y-2 text-xs">
+                                            {[["Direct Market", "45.2%"], ["Smart Router", "32.7%"], ["Dark Pools", "12.3%"], ["ECN", "6.8%"], ["Internalizer", "3.0%"]].map(([label, value]) => (
+                                                <div key={label} className="flex justify-between gap-4">
+                                                    <span className="font-semibold text-slate-500">{label}</span>
+                                                    <span className="font-black text-[#07124A]">{value}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="mt-4 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                                <div className="mb-4 flex items-center justify-between">
+                                    <h4 className="font-black text-[#07124A]">Live Execution Flow</h4>
+                                    <span className="rounded-xl bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-600">System latency 17ms</span>
+                                </div>
+                                <div className="grid gap-3 md:grid-cols-5">
+                                    {flow.map(([top, bottom, time], index) => (
+                                        <div key={top} className="rounded-2xl bg-slate-50 p-4 text-center">
+                                            <div className="mx-auto mb-2 grid h-10 w-10 place-items-center rounded-full bg-white text-[#2338BA] shadow-sm">
+                                                <Icon name={index === 0 ? "activity" : index === 1 ? "shield" : index === 2 ? "route" : index === 3 ? "check" : "chart"} className="h-4 w-4" />
+                                            </div>
+                                            <p className="text-xs font-black text-[#07124A]">{top}</p>
+                                            <p className="text-[11px] font-bold text-slate-500">{bottom}</p>
+                                            <p className="mt-1 text-[10px] font-semibold text-slate-400">{time}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="mt-4 grid gap-4 lg:grid-cols-3">
+                                {[
+                                    ["Top Signals", [["SMC Long Setup", "92%"], ["Liquidity Sweep", "87%"], ["Mean Reversion", "79%"]]],
+                                    ["Strategy Performance", [["AI Trend", "+23.45%"], ["Options Capture", "+17.82%"], ["Pairs Trading", "+12.09%"]]],
+                                    ["AI Automations", [["Auto Rebalance", "Active"], ["Signal Execution", "Active"], ["Risk Adjustments", "Active"]]],
+                                ].map(([title, rows]) => (
+                                    <div key={title} className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                                        <div className="mb-4 flex items-center justify-between">
+                                            <h4 className="font-black text-[#07124A]">{title}</h4>
+                                            <span className="text-xs font-black text-[#2338BA]">View</span>
+                                        </div>
+                                        <div className="space-y-3">
+                                            {rows.map(([label, value]) => (
+                                                <div key={label} className="flex items-center justify-between text-sm">
+                                                    <span className="font-semibold text-slate-500">{label}</span>
+                                                    <span className="font-black text-emerald-500">{value}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function EmpirexOSLandingPage() {
+            const [formData, setFormData] = useState({
+                fullName: "",
+                email: "",
+                phone: "",
+                profile: "",
+                verificationChannel: "email",
+                notes: "",
+            });
+            const [isSubmitting, setIsSubmitting] = useState(false);
+            const [isVerifying, setIsVerifying] = useState(false);
+            const [isResending, setIsResending] = useState(false);
+            const [submitMessage, setSubmitMessage] = useState({ type: "", text: "" });
+            const [verificationCode, setVerificationCode] = useState("");
+            const [verificationContext, setVerificationContext] = useState(null);
+            const year = useMemo(() => new Date().getFullYear(), []);
+
+            const scrollToRegister = () => {
+                const section = document.getElementById("register");
+                if (section) {
+                    section.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+            };
+
+            const goToHomeQuick = () => {
+                window.location.assign("./home-live.html?guest=1");
+            };
+
+            const handleFieldChange = (event) => {
+                const { name, value } = event.target;
+                setFormData((prev) => ({ ...prev, [name]: value }));
+            };
+
+            const handleRegister = async (event) => {
+                event.preventDefault();
+
+                if (!formData.fullName.trim() || !formData.profile.trim()) {
+                    setSubmitMessage({ type: "error", text: "יש למלא שם מלא ופרופיל פעילות." });
+                    return;
+                }
+
+                if (formData.verificationChannel === "email" && !formData.email.trim()) {
+                    setSubmitMessage({ type: "error", text: "יש למלא אימייל עבור אימות במייל." });
+                    return;
+                }
+
+                if (formData.verificationChannel === "phone" && !formData.phone.trim()) {
+                    setSubmitMessage({ type: "error", text: "יש למלא טלפון עבור אימות SMS." });
+                    return;
+                }
+
+                setIsSubmitting(true);
+                setSubmitMessage({ type: "", text: "" });
+
+                try {
+                    const response = await fetch("/api/register", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(formData),
+                    });
+
+                    const result = await response.json();
+
+                    if (!response.ok || !result.ok) {
+                        throw new Error(result.error || "Registration failed");
+                    }
+
+                    setVerificationContext({
+                        fullName: formData.fullName.trim(),
+                        email: result?.data?.email || formData.email.trim(),
+                        phone: result?.data?.phone || formData.phone.trim(),
+                        channel: result?.data?.channel || formData.verificationChannel,
+                        devCode: result?.data?.devCode || "",
+                    });
+                    setVerificationCode("");
+                    setSubmitMessage({
+                        type: "success",
+                        text: `קוד אימות נשלח ב-${formData.verificationChannel === "phone" ? "SMS" : "מייל"}. הזן אותו להשלמת ההרשמה.`,
+                    });
+                } catch (error) {
+                    setSubmitMessage({ type: "error", text: error.message || "אירעה שגיאה בהרשמה. נסה שוב." });
+                } finally {
+                    setIsSubmitting(false);
+                }
+            };
+
+            const handleVerifyCode = async (event) => {
+                event.preventDefault();
+                if (!verificationContext) {
+                    setSubmitMessage({ type: "error", text: "לא נמצאה בקשת אימות פעילה." });
+                    return;
+                }
+                if (!verificationCode.trim()) {
+                    setSubmitMessage({ type: "error", text: "יש להזין קוד אימות." });
+                    return;
+                }
+
+                setIsVerifying(true);
+                try {
+                    const response = await fetch("/api/verify-code", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            verificationChannel: verificationContext.channel,
+                            email: verificationContext.email,
+                            phone: verificationContext.phone,
+                            code: verificationCode.trim(),
+                        }),
+                    });
+                    const result = await response.json();
+
+                    if (!response.ok || !result.ok) {
+                        throw new Error(result.error || "Verification failed");
+                    }
+
+                    localStorage.setItem("empirex_user_name", result?.data?.fullName || verificationContext.fullName);
+                    localStorage.setItem("empirex_session_token", result?.data?.sessionToken || "");
+
+                    const redirectPath = result?.data?.redirectTo || "/home-live.html";
+                    const finalName = result?.data?.fullName || verificationContext.fullName;
+                    window.location.replace(`${redirectPath}?name=${encodeURIComponent(finalName)}`);
+                } catch (error) {
+                    setSubmitMessage({ type: "error", text: error.message || "אימות נכשל. נסה שוב." });
+                } finally {
+                    setIsVerifying(false);
+                }
+            };
+
+            const handleResendCode = async () => {
+                if (!verificationContext) return;
+                setIsResending(true);
+                try {
+                    const response = await fetch("/api/resend-code", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            verificationChannel: verificationContext.channel,
+                            email: verificationContext.email,
+                            phone: verificationContext.phone,
+                        }),
+                    });
+                    const result = await response.json();
+                    if (!response.ok || !result.ok) {
+                        throw new Error(result.error || "Resend failed");
+                    }
+                    setVerificationContext((prev) => (prev ? { ...prev, devCode: result?.data?.devCode || prev.devCode } : prev));
+                    setSubmitMessage({ type: "success", text: "קוד חדש נשלח בהצלחה." });
+                } catch (error) {
+                    setSubmitMessage({ type: "error", text: error.message || "שליחה מחדש נכשלה." });
+                } finally {
+                    setIsResending(false);
+                }
+            };
+
+            return (
+                <div dir="rtl" className="min-h-screen overflow-hidden bg-[#F7FAFF] text-[#07124A] selection:bg-cyan-200/50">
+                    <style>{`
+                        @keyframes fadeUp { from { opacity: 0; transform: translateY(26px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+                        @keyframes glowMove { 0%,100% { transform: translate3d(0,0,0) rotate(-10deg); opacity: .72; } 50% { transform: translate3d(34px,-18px,0) rotate(-10deg); opacity: 1; } }
+                        .fade-up { animation: fadeUp .72s ease-out both; }
+                        .glow-move { animation: glowMove 8s ease-in-out infinite; }
+                    `}</style>
+
+                    <div className="fixed inset-0 -z-10">
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_8%,rgba(25,183,242,.16),transparent_28%),radial-gradient(circle_at_90%_20%,rgba(35,56,186,.13),transparent_30%),linear-gradient(135deg,#FFFFFF_0%,#F7FAFF_48%,#EEF5FF_100%)]" />
+                        <div className="absolute bottom-[-180px] left-[-170px] h-[520px] w-[880px] rounded-full bg-[radial-gradient(circle,rgba(7,18,74,.95),rgba(7,18,74,.64)_46%,transparent_72%)]" />
+                        <div className="glow-move absolute bottom-[40px] left-[-40px] h-[330px] w-[900px] bg-[linear-gradient(90deg,transparent,rgba(25,183,242,.85),rgba(18,215,209,.48),transparent)] blur-2xl" />
+                    </div>
+
+                    <main>
+                        <section className="mx-auto grid max-w-7xl items-center gap-12 px-5 pb-20 pt-12 lg:grid-cols-[.84fr_1.16fr] lg:px-8 lg:pb-28 lg:pt-18">
+                            <div className="fade-up relative z-10">
+                                <div className="mb-10 flex items-center gap-5">
+                                    <EmpirexMark className="h-24 w-24 md:h-28 md:w-28" />
+                                    <div>
+                                        <div className="text-4xl font-black tracking-[0.22em] text-[#07124A] md:text-5xl">
+                                            EMPIREX <span className="bg-gradient-to-l from-[#12D7D1] to-[#19B7F2] bg-clip-text text-transparent">OS</span>
+                                        </div>
+                                        <div className="mt-3 text-xs font-black uppercase tracking-[0.38em] text-slate-400">The Master OS for Capital Markets</div>
+                                    </div>
+                                </div>
+
+                                <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-cyan-100 bg-white/75 px-4 py-2 text-sm font-black text-[#07124A] shadow-sm backdrop-blur">
+                                    <span className="grid h-6 w-6 place-items-center rounded-full bg-cyan-50"><Icon name="globe" className="h-3.5 w-3.5 text-cyan-500" /></span>
+                                    Unified Trading Operating System
+                                </div>
+
+                                <h1 className="max-w-2xl text-5xl font-black leading-[1.02] tracking-[-0.065em] text-[#07124A] md:text-7xl">
+                                    מערכת שליטה אחת לכל מה שסוחר רציני צריך.
+                                </h1>
+
+                                <p className="mt-7 max-w-xl text-xl font-medium leading-9 text-slate-600">
+                                    EMPIREX OS מאחדת מסחר יומי, אוטומציות, סוכן AI, יומן מסחר, תיקי השקעות, ביצוע עסקאות ומנוע סיכון — למערכת אחת שמחליפה עבודה מפוזרת בין כלים, טבלאות, גרפים וצ׳אטים.
+                                </p>
+
+                                <div className="mt-9 flex flex-col gap-4 sm:flex-row">
+                                    <button onClick={goToHomeQuick} className="group rounded-2xl bg-[#07124A] px-7 py-4 text-base font-black text-white shadow-[0_24px_60px_rgba(7,18,74,.28)] transition hover:-translate-y-1 hover:shadow-[0_30px_80px_rgba(7,18,74,.38)]">
+                                        כניסה מהירה לדף הבית
+                                        <Icon name="arrow" className="mr-2 inline h-5 w-5 rotate-180 transition group-hover:translate-x-[-4px]" />
+                                    </button>
+                                    <button onClick={scrollToRegister} className="rounded-2xl border border-slate-200 bg-white/80 px-7 py-4 text-base font-black text-[#07124A] shadow-sm backdrop-blur transition hover:-translate-y-1 hover:shadow-xl">
+                                        מעבר להרשמה מלאה
+                                    </button>
+                                </div>
+
+                                <div className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                                    {[
+                                        ["8", "Core Engines"],
+                                        ["32", "Build Steps"],
+                                        ["4", "System Layers"],
+                                        ["Live", "Real-time OS"],
+                                    ].map(([value, label]) => (
+                                        <div key={label} className="rounded-3xl border border-white/80 bg-white/70 p-5 shadow-sm backdrop-blur">
+                                            <p className="text-3xl font-black tracking-[-0.04em] text-[#07124A]">{value}</p>
+                                            <p className="mt-1 text-xs font-black uppercase tracking-[0.18em] text-slate-400">{label}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="relative lg:-ml-24">
+                                <div className="absolute -inset-8 rounded-[3rem] bg-[radial-gradient(circle_at_42%_38%,rgba(25,183,242,.24),transparent_43%)] blur-2xl" />
+                                <ProductMockup />
+                            </div>
+                        </section>
+
+                        <section className="mx-auto max-w-7xl px-5 pb-20 lg:px-8">
+                            <div className="rounded-[38px] border border-white/80 bg-white/72 p-7 shadow-[0_22px_80px_rgba(7,18,74,.08)] backdrop-blur-xl md:p-10">
+                                <div className="grid gap-10 lg:grid-cols-[.74fr_1.26fr]">
+                                    <div>
+                                        <p className="text-sm font-black uppercase tracking-[0.32em] text-[#16BFCB]">What It Is</p>
+                                        <h2 className="mt-4 text-4xl font-black leading-tight tracking-[-0.05em] md:text-5xl">לא עוד דשבורד. שכבת הפעלה למסחר.</h2>
+                                    </div>
+                                    <div className="grid gap-5 text-lg leading-9 text-slate-600">
+                                        <p>
+                                            המערכת נבנית כדי לפתור בעיה אחת גדולה: סוחר עובד היום עם גרפים במקום אחד, יומן במקום אחר, בוטים במקום אחר, AI בצ׳אט נפרד, תיק השקעות בכלי אחר וניהול סיכונים בראש. EMPIREX OS מחברת את כל זה לזרימת עבודה אחת.
+                                        </p>
+                                        <p>
+                                            המוצר בנוי סביב רצף החלטה מלא: נתוני שוק → איתות → אישור סיכון → ביצוע → תיעוד ביומן → ניתוח ביצועים → התאמה אוטומטית של ההמשך. זו מערכת שמטרתה להפוך את הפעילות של הסוחר למדידה, מבוקרת וחכמה יותר.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section className="relative border-y border-white/70 bg-white/50 py-8 backdrop-blur-xl">
+                            <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-12 gap-y-5 px-5 text-xs font-black uppercase tracking-[0.22em] text-slate-400 lg:px-8">
+                                <span>TradingView</span><span>MetaTrader 5</span><span>FastAPI</span><span>Supabase</span><span>TimescaleDB</span><span>Redis</span><span>Claude AI</span><span>LangGraph</span>
+                            </div>
+                        </section>
+
+                        <section className="mx-auto max-w-7xl px-5 py-24 lg:px-8">
+                            <div className="mx-auto max-w-3xl text-center">
+                                <p className="text-sm font-black uppercase tracking-[0.32em] text-[#16BFCB]">System Architecture</p>
+                                <h2 className="mt-4 text-4xl font-black tracking-[-0.055em] md:text-6xl">מה יש בתוך EMPIREX OS</h2>
+                                <p className="mt-5 text-lg leading-8 text-slate-600">כל חלק במערכת מחזיק תפקיד ברור. לא אוסף פיצ׳רים. מערכת אחת עם חלוקת אחריות אמיתית.</p>
+                            </div>
+
+                            <div className="mt-14 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+                                {systemPillars.map((pillar) => (
+                                    <div key={pillar.title} className="group rounded-[2rem] border border-white/80 bg-white/76 p-6 shadow-sm backdrop-blur transition hover:-translate-y-1 hover:shadow-[0_26px_70px_rgba(7,18,74,.12)]">
+                                        <div className="mb-5 grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-cyan-50 to-indigo-50 text-[#07124A] transition group-hover:scale-105">
+                                            <Icon name={pillar.icon} className="h-6 w-6" />
+                                        </div>
+                                        <p className="text-xs font-black uppercase tracking-[0.22em] text-[#16BFCB]">{pillar.subtitle}</p>
+                                        <h3 className="mt-2 text-xl font-black tracking-[-0.03em]">{pillar.title}</h3>
+                                        <p className="mt-3 leading-7 text-slate-600">{pillar.text}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+
+                        <section className="relative overflow-hidden bg-[#07124A] py-24 text-white">
+                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_18%,rgba(25,183,242,.22),transparent_32%),radial-gradient(circle_at_82%_72%,rgba(18,215,209,.14),transparent_36%)]" />
+                            <div className="relative mx-auto grid max-w-7xl gap-12 px-5 lg:grid-cols-[.82fr_1.18fr] lg:px-8">
+                                <div>
+                                    <p className="text-sm font-black uppercase tracking-[0.32em] text-cyan-300">Technology Stack</p>
+                                    <h2 className="mt-4 text-4xl font-black leading-tight tracking-[-0.055em] md:text-6xl">תשתית שמיועדת לגדול, לא רק להיראות טוב.</h2>
+                                    <p className="mt-6 text-lg leading-9 text-white/70">
+                                        הארכיטקטורה מחולקת ל־Frontend, Backend, Data ו־AI. כל שכבה בנויה עם טכנולוגיות שמאפשרות real-time, אבטחה, state management, orchestration, זיכרון וקטורי ופריסה לענן.
+                                    </p>
+                                    <div className="mt-8 grid gap-3">
+                                        {proofPoints.map((point) => (
+                                            <div key={point} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white/75">
+                                                <span className="grid h-6 w-6 place-items-center rounded-full bg-cyan-300/15 text-cyan-200"><Icon name="check" className="h-3.5 w-3.5" /></span>
+                                                {point}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="grid gap-5 md:grid-cols-2">
+                                    {stack.map(([title, ...items]) => (
+                                        <div key={title} className="rounded-[2rem] border border-white/10 bg-white/[0.07] p-6 backdrop-blur-xl">
+                                            <h3 className="text-2xl font-black tracking-[-0.04em]">{title}</h3>
+                                            <div className="mt-5 grid gap-3">
+                                                {items.map((item) => (
+                                                    <div key={item} className="rounded-2xl bg-white/5 px-4 py-3 text-sm font-bold text-white/75">{item}</div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </section>
+
+                        <section className="mx-auto max-w-7xl px-5 py-24 lg:px-8">
+                            <div className="grid gap-12 lg:grid-cols-[.72fr_1.28fr]">
+                                <div>
+                                    <p className="text-sm font-black uppercase tracking-[0.32em] text-[#16BFCB]">Build Roadmap</p>
+                                    <h2 className="mt-4 text-4xl font-black leading-tight tracking-[-0.055em] md:text-6xl">תוכנית ביצוע שמחברת חזון לקוד.</h2>
+                                    <p className="mt-5 text-lg leading-8 text-slate-600">המערכת נבנית בשלבים ברורים — לא בקפיצות. כל שלב מייצר שכבת מוצר אמיתית שמתחברת לשלב הבא.</p>
+                                </div>
+                                <div className="space-y-4">
+                                    {roadmap.map(([num, title, text]) => (
+                                        <div key={num} className="grid gap-5 rounded-[2rem] border border-white/80 bg-white/76 p-5 shadow-sm backdrop-blur md:grid-cols-[82px_1fr]">
+                                            <div className="grid h-16 w-16 place-items-center rounded-2xl bg-[#07124A] text-xl font-black text-white">{num}</div>
+                                            <div>
+                                                <h3 className="text-2xl font-black tracking-[-0.04em]">{title}</h3>
+                                                <p className="mt-2 leading-7 text-slate-600">{text}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </section>
+
+                        <section className="mx-auto max-w-7xl px-5 pb-24 lg:px-8">
+                            <div className="overflow-hidden rounded-[3rem] bg-[#07124A] shadow-[0_40px_120px_rgba(7,18,74,.24)]">
+                                <div className="grid gap-0 lg:grid-cols-[.95fr_1.05fr]">
+                                    <div className="p-8 text-white md:p-12">
+                                        <p className="text-sm font-black uppercase tracking-[0.32em] text-cyan-300">EMPIREX OS</p>
+                                        <h2 className="mt-4 text-4xl font-black leading-tight tracking-[-0.055em] md:text-6xl">המסחר שלך צריך מערכת. לא עוד כלי.</h2>
+                                        <p className="mt-6 text-lg leading-9 text-white/70">
+                                            כשכל החלטה, סיכון, עסקה, בוט, יומן ותיק השקעות נמצאים באותה שכבת שליטה — הסוחר מפסיק לנחש ומתחיל לנהל מערכת.
+                                        </p>
+                                        <div className="mt-9 flex flex-col gap-4 sm:flex-row">
+                                            <button onClick={goToHomeQuick} className="rounded-2xl bg-[#16D3D1] px-7 py-4 font-black text-white shadow-[0_20px_50px_rgba(22,211,209,.25)] transition hover:-translate-y-1">כניסה מהירה לדף הבית</button>
+                                            <button onClick={scrollToRegister} className="rounded-2xl border border-white/15 bg-white/10 px-7 py-4 font-black text-white transition hover:-translate-y-1">ראה דמו של המערכת</button>
+                                        </div>
+                                    </div>
+                                    <div className="relative min-h-[420px] bg-[radial-gradient(circle_at_50%_50%,rgba(25,183,242,.2),transparent_35%),linear-gradient(135deg,rgba(255,255,255,.08),rgba(255,255,255,.02))] p-8 md:p-12">
+                                        <div className="rounded-[2rem] border border-white/10 bg-white/10 p-5 backdrop-blur-xl">
+                                            <div className="mb-5 flex items-center justify-between text-white">
+                                                <span className="font-black">System Readiness</span>
+                                                <span className="rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-black text-emerald-200">Enterprise Grade</span>
+                                            </div>
+                                            {[
+                                                ["Unified trading workflow", "94%"],
+                                                ["Real-time market layer", "91%"],
+                                                ["AI memory per user", "88%"],
+                                                ["Risk guardrails", "96%"],
+                                                ["Journal analytics", "90%"],
+                                                ["Portfolio tracking", "89%"],
+                                            ].map(([label, value]) => (
+                                                <div key={label} className="mb-3 flex items-center justify-between rounded-2xl bg-white/10 px-4 py-3 text-sm font-bold text-white/75">
+                                                    <span>{label}</span>
+                                                    <span className="text-cyan-200">{value}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section id="register" className="mx-auto max-w-5xl px-5 pb-24 lg:px-8">
+                            <div className="rounded-[2.2rem] border border-white/80 bg-white/85 p-7 shadow-[0_20px_70px_rgba(7,18,74,.12)] backdrop-blur md:p-10">
+                                <div className="mb-6 text-center">
+                                    <p className="text-sm font-black uppercase tracking-[0.3em] text-[#16BFCB]">Official Registration</p>
+                                    <h2 className="mt-3 text-3xl font-black tracking-[-0.04em] text-[#07124A] md:text-5xl">הרשמה אמיתית למערכת</h2>
+                                    <p className="mt-3 text-slate-600">הפרטים נשמרים במסד נתונים אמיתי דרך API פעיל.</p>
+                                </div>
+
+                                <form onSubmit={handleRegister} className="grid gap-4 md:grid-cols-2">
+                                    <label className="grid gap-2 text-sm font-black text-slate-600">
+                                        שם מלא
+                                        <input
+                                            className="rounded-xl border border-slate-200 bg-white px-4 py-3 font-semibold text-[#07124A] outline-none focus:border-cyan-300"
+                                            name="fullName"
+                                            value={formData.fullName}
+                                            onChange={handleFieldChange}
+                                            placeholder="השם שלך"
+                                            required
+                                        />
+                                    </label>
+
+                                    <label className="grid gap-2 text-sm font-black text-slate-600">
+                                        אימייל
+                                        <input
+                                            className="rounded-xl border border-slate-200 bg-white px-4 py-3 font-semibold text-[#07124A] outline-none focus:border-cyan-300"
+                                            type="email"
+                                            name="email"
+                                            value={formData.email}
+                                            onChange={handleFieldChange}
+                                            placeholder="name@email.com"
+                                            required={formData.verificationChannel === "email"}
+                                        />
+                                    </label>
+
+                                    <label className="grid gap-2 text-sm font-black text-slate-600">
+                                        טלפון (לאימות SMS)
+                                        <input
+                                            className="rounded-xl border border-slate-200 bg-white px-4 py-3 font-semibold text-[#07124A] outline-none focus:border-cyan-300"
+                                            type="tel"
+                                            name="phone"
+                                            value={formData.phone}
+                                            onChange={handleFieldChange}
+                                            placeholder="+9725XXXXXXXX"
+                                            required={formData.verificationChannel === "phone"}
+                                        />
+                                    </label>
+
+                                    <label className="grid gap-2 text-sm font-black text-slate-600">
+                                        ערוץ אימות
+                                        <select
+                                            className="rounded-xl border border-slate-200 bg-white px-4 py-3 font-semibold text-[#07124A] outline-none focus:border-cyan-300"
+                                            name="verificationChannel"
+                                            value={formData.verificationChannel}
+                                            onChange={handleFieldChange}
+                                            required
+                                        >
+                                            <option value="email">אימות במייל</option>
+                                            <option value="phone">אימות ב-SMS</option>
+                                        </select>
+                                    </label>
+
+                                    <label className="grid gap-2 text-sm font-black text-slate-600">
+                                        פרופיל פעילות
+                                        <select
+                                            className="rounded-xl border border-slate-200 bg-white px-4 py-3 font-semibold text-[#07124A] outline-none focus:border-cyan-300"
+                                            name="profile"
+                                            value={formData.profile}
+                                            onChange={handleFieldChange}
+                                            required
+                                        >
+                                            <option value="">בחר פרופיל</option>
+                                            <option>Day Trader</option>
+                                            <option>Swing Trader</option>
+                                            <option>Funded Trader</option>
+                                            <option>Portfolio Builder</option>
+                                        </select>
+                                    </label>
+
+                                    <label className="grid gap-2 text-sm font-black text-slate-600 md:row-span-2">
+                                        הערות (אופציונלי)
+                                        <textarea
+                                            className="h-full min-h-[120px] rounded-xl border border-slate-200 bg-white px-4 py-3 font-semibold text-[#07124A] outline-none focus:border-cyan-300"
+                                            name="notes"
+                                            value={formData.notes}
+                                            onChange={handleFieldChange}
+                                            placeholder="מה חשוב לך במערכת?"
+                                        />
+                                    </label>
+
+                                    <div className="md:col-span-2 flex flex-col gap-3">
+                                        <button
+                                            type="submit"
+                                            disabled={isSubmitting}
+                                            className="rounded-2xl bg-[#07124A] px-7 py-4 text-base font-black text-white shadow-[0_24px_60px_rgba(7,18,74,.28)] transition hover:-translate-y-1 disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            {isSubmitting ? "שומר הרשמה..." : "שלח הרשמה"}
+                                        </button>
+
+                                        {submitMessage.text ? (
+                                            <p className={`text-sm font-bold ${submitMessage.type === "success" ? "text-emerald-600" : "text-rose-600"}`}>
+                                                {submitMessage.text}
+                                            </p>
+                                        ) : null}
+                                    </div>
+                                </form>
+
+                                {verificationContext ? (
+                                    <form onSubmit={handleVerifyCode} className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:p-6">
+                                        <h3 className="text-xl font-black text-[#07124A]">אימות קוד הרשמה</h3>
+                                        <p className="mt-1 text-sm font-semibold text-slate-500">
+                                            הזן את הקוד שנשלח אל {verificationContext.channel === "phone" ? verificationContext.phone : verificationContext.email}
+                                        </p>
+                                        {verificationContext.devCode ? (
+                                            <p className="mt-2 text-xs font-black text-cyan-700">DEV CODE: {verificationContext.devCode}</p>
+                                        ) : null}
+
+                                        <div className="mt-4 flex flex-col gap-3 md:flex-row">
+                                            <input
+                                                className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 font-black tracking-[0.3em] text-[#07124A] outline-none focus:border-cyan-300"
+                                                placeholder="______"
+                                                maxLength={6}
+                                                value={verificationCode}
+                                                onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, ""))}
+                                            />
+                                            <button
+                                                type="submit"
+                                                disabled={isVerifying}
+                                                className="rounded-2xl bg-[#07124A] px-6 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
+                                            >
+                                                {isVerifying ? "מאמת..." : "אמת קוד"}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={handleResendCode}
+                                                disabled={isResending}
+                                                className="rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-black text-[#07124A] disabled:cursor-not-allowed disabled:opacity-60"
+                                            >
+                                                {isResending ? "שולח..." : "שלח קוד מחדש"}
+                                            </button>
+                                        </div>
+                                    </form>
+                                ) : null}
+                            </div>
+                        </section>
+                    </main>
+
+                    <footer className="border-t border-white/70 bg-white/70 py-10 backdrop-blur-xl">
+                        <div className="mx-auto flex max-w-7xl flex-col gap-6 px-5 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+                            <div className="flex items-center gap-4">
+                                <EmpirexMark className="h-12 w-12" />
+                                <div>
+                                    <div className="text-xl font-black tracking-[0.22em] text-[#07124A]">EMPIREX <span className="text-[#16D3D1]">OS</span></div>
+                                    <div className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Unified Trading Operating System</div>
+                                </div>
+                            </div>
+                            <p className="text-sm font-semibold text-slate-500">© {year} EMPIREX OS. Built for serious traders, intelligent execution and capital control.</p>
+                        </div>
+                    </footer>
+                </div>
+            );
+        }
+
+        ReactDOM.createRoot(document.getElementById("root")).render(<EmpirexOSLandingPage />);
+    </script>
+</body>
+
+</html>
