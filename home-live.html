@@ -3072,7 +3072,7 @@
         // ────────────────────────────────────────────────────────────────────────
 
         function EmpirexHomeAfterSignup() {
-            const TEMP_ALLOW_HOME_WITHOUT_LOGIN = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+            const TEMP_ALLOW_HOME_WITHOUT_LOGIN = false;
             const [userName, setUserName] = useState(getUserNameFromContext);
             const [marketData, setMarketData] = useState({ fx: fallbackFx, stocks: fallbackStocks, source: "fallback" });
             const [lastUpdated, setLastUpdated] = useState(null);
@@ -3232,9 +3232,7 @@
                         return;
                     }
 
-                    const params = new URLSearchParams(window.location.search);
-                    const isGuestMode = params.get("guest") === "1";
-                    if (isGuestMode || window.location.protocol === "file:") {
+                    if (window.location.protocol === "file:") {
                         setAuthChecked(true);
                         return;
                     }

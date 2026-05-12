@@ -324,7 +324,17 @@
             };
 
             const goToHomeQuick = () => {
-                window.location.assign("./home-live.html?guest=1");
+                const sessionToken = localStorage.getItem("empirex_session_token");
+                if (sessionToken) {
+                    window.location.assign("./home-live.html");
+                    return;
+                }
+
+                setSubmitMessage({
+                    type: "error",
+                    text: "כדי להיכנס לדף הבית יש להשלים הרשמה ואימות.",
+                });
+                scrollToRegister();
             };
 
             const handleFieldChange = (event) => {
