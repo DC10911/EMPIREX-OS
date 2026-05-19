@@ -3239,7 +3239,7 @@
 
                     const sessionToken = localStorage.getItem("empirex_session_token");
                     if (!sessionToken) {
-                        window.location.replace("./react-live.html?v=auth-required");
+                        window.location.replace("/?reason=auth-required");
                         return;
                     }
 
@@ -3253,7 +3253,7 @@
                         setAuthChecked(true);
                     } catch (error) {
                         localStorage.removeItem("empirex_session_token");
-                        window.location.replace("./react-live.html?v=session-expired");
+                        window.location.replace("/?reason=session-expired");
                     }
                 };
 

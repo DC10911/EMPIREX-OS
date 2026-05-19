@@ -460,9 +460,11 @@ $('#btnVerify').onclick = async ()=>{
     const j = await r.json();
     if(!r.ok || !j.ok){ showMsg(msg,'err',j.error||'קוד שגוי'); btn.disabled=false; btn.textContent='אמת קוד והיכנס'; return; }
     showMsg(msg,'ok','הצלחה! מעביר אותך למערכת…');
-    localStorage.setItem('empx_session', j.data.sessionToken);
-    localStorage.setItem('empx_user', JSON.stringify({email:j.data.email, fullName:j.data.fullName}));
-    setTimeout(()=>{ location.href = j.data.redirectTo || '/home-live.html'; }, 700);
+    // Keys MUST match home-live.html expectations:
+    localStorage.setItem('empirex_session_token', j.data.sessionToken);
+    if (j.data.fullName) localStorage.setItem('empirex_user_name', j.data.fullName);
+    if (j.data.email)    localStorage.setItem('empirex_user_email', j.data.email);
+    setTimeout(()=>{ location.href = (j.data.redirectTo || '/home-live.html'); }, 700);
   }catch(err){ showMsg(msg,'err','כשל בתקשורת'); btn.disabled=false; btn.textContent='אמת קוד והיכנס'; }
 };
 
