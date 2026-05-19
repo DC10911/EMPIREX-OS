@@ -1446,14 +1446,75 @@ _bot_engine = BotEngine()
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+# ─── Stateless signed session tokens (survive DB wipes / redeploys) ─────────
+# Token format: base64url(JSON payload) + "." + base64url(HMAC-SHA256)
+# Payload: {"id":int,"name":str,"email":str,"phone":str,"exp":epoch_seconds}
+# Validation requires only SESSION_SECRET — no DB lookup. So even when the
+# SQLite file is wiped on Render free-tier redeploys, users stay logged in.
+_SESSION_SECRET_FALLBACK = "empirex-os-default-session-secret-v1-change-via-env"
+SESSION_SECRET = (os.getenv("SESSION_SECRET") or _SESSION_SECRET_FALLBACK).encode("utf-8")
+SESSION_TTL_DAYS = int(os.getenv("SESSION_TTL_DAYS", "90"))
+
+def _b64url_encode(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
+
+def _b64url_decode(s: str) -> bytes:
+    pad = "=" * (-len(s) % 4)
+    return base64.urlsafe_b64decode(s + pad)
+
+def sign_session_token(user_id: int, full_name: str, email: str, phone: str) -> str:
+    payload = {
+        "id": int(user_id),
+        "name": full_name or "",
+        "email": (email or "").lower(),
+        "phone": phone or "",
+        "exp": int(time.time()) + SESSION_TTL_DAYS * 86400,
+    }
+    body = _b64url_encode(json.dumps(payload, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+    sig = _b64url_encode(hmac.new(SESSION_SECRET, body.encode("ascii"), hashlib.sha256).digest())
+    return f"{body}.{sig}"
+
+def verify_session_token(token: str) -> dict | None:
+    try:
+        body, sig = token.split(".", 1)
+    except ValueError:
+        return None
+    expected = _b64url_encode(hmac.new(SESSION_SECRET, body.encode("ascii"), hashlib.sha256).digest())
+    if not hmac.compare_digest(expected, sig):
+        return None
+    try:
+        payload = json.loads(_b64url_decode(body).decode("utf-8"))
+    except Exception:
+        return None
+    if int(payload.get("exp", 0)) < int(time.time()):
+        return None
+    return payload
+
+
 def create_session(conn: sqlite3.Connection, registration_id: int) -> str:
-    token = secrets.token_urlsafe(36)
+    """Issue a stateless signed token. Also writes a best-effort DB row for audit
+    purposes, but token validation never depends on the DB row existing."""
+    row = None
+    try:
+        row = conn.execute(
+            "SELECT full_name, email, phone FROM registrations WHERE id = ?",
+            (registration_id,),
+        ).fetchone()
+    except Exception:
+        pass
+    full_name = (row["full_name"] if row else "") or ""
+    email = (row["email"] if row else "") or ""
+    phone = (row["phone"] if row else "") or ""
+    token = sign_session_token(int(registration_id), full_name, email, phone)
     now = utc_now()
-    expires_at = now + timedelta(days=7)
-    conn.execute(
-        "INSERT INTO registration_sessions (registration_id, token, created_at, expires_at) VALUES (?, ?, ?, ?)",
-        (registration_id, token, utc_iso(now), utc_iso(expires_at)),
-    )
+    expires_at = now + timedelta(days=SESSION_TTL_DAYS)
+    try:
+        conn.execute(
+            "INSERT INTO registration_sessions (registration_id, token, created_at, expires_at) VALUES (?, ?, ?, ?)",
+            (registration_id, token, utc_iso(now), utc_iso(expires_at)),
+        )
+    except Exception:
+        pass
     return token
 
 
@@ -1670,6 +1731,26 @@ class EmpirexHandler(SimpleHTTPRequestHandler):
                 self._json_response(400, {"ok": False, "error": "Missing token"})
                 return
 
+            # Stateless path: HMAC verification — survives DB wipes / redeploys
+            payload = verify_session_token(token)
+            if payload:
+                self._json_response(
+                    200,
+                    {
+                        "ok": True,
+                        "data": {
+                            "id": payload.get("id"),
+                            "fullName": payload.get("name", ""),
+                            "email": payload.get("email", ""),
+                            "phone": payload.get("phone", ""),
+                            "emailVerified": True,
+                            "phoneVerified": False,
+                        },
+                    },
+                )
+                return
+
+            # Legacy path: pre-HMAC tokens stored only in the DB
             with get_conn() as conn:
                 row = conn.execute(
                     """
