@@ -2439,6 +2439,15 @@ class EmpirexHandler(SimpleHTTPRequestHandler):
         })
 
     def _handle_logout(self) -> None:
+        payload = self._read_json_body()
+        token = str(payload.get("token", "")).strip()
+        if not token:
+            self._json_response(400, {"ok": False, "error": "Missing token"})
+            return
+        with get_conn() as conn:
+            conn.execute("DELETE FROM registration_sessions WHERE token = ?", (token,))
+            conn.commit()
+        self._json_response(200, {"ok": True, "message": "Logged out"})
 
     def _handle_broker_connect(self) -> None:
         """Connect to a broker and return real account data."""
