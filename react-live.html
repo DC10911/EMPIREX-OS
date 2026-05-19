@@ -602,7 +602,7 @@
             };
 
             return (
-                <div dir="rtl" className="min-h-screen overflow-hidden bg-[#F7FAFF] text-[#07124A] selection:bg-cyan-200/50">
+                <div dir="rtl" className="min-h-screen overflow-hidden bg-transparent text-white selection:bg-cyan-200/50">
                     <style>{`
                         @keyframes fadeUp { from { opacity: 0; transform: translateY(26px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
                         @keyframes glowMove { 0%,100% { transform: translate3d(0,0,0) rotate(-10deg); opacity: .72; } 50% { transform: translate3d(34px,-18px,0) rotate(-10deg); opacity: 1; } }
@@ -611,8 +611,8 @@
                     `}</style>
 
                     <div className="fixed inset-0 -z-10">
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_8%,rgba(25,183,242,.16),transparent_28%),radial-gradient(circle_at_90%_20%,rgba(35,56,186,.13),transparent_30%),linear-gradient(135deg,#FFFFFF_0%,#F7FAFF_48%,#EEF5FF_100%)]" />
-                        <div className="absolute bottom-[-180px] left-[-170px] h-[520px] w-[880px] rounded-full bg-[radial-gradient(circle,rgba(7,18,74,.95),rgba(7,18,74,.64)_46%,transparent_72%)]" />
+                        <div className="absolute inset-0" style={{background:'transparent'}} />
+                        <div className="absolute bottom-[-180px] left-[-170px] h-[520px] w-[880px] rounded-full bg-[radial-gradient(circle,rgba(7,18,74,.55),rgba(7,18,74,.32)_46%,transparent_72%)]" />
                         <div className="glow-move absolute bottom-[40px] left-[-40px] h-[330px] w-[900px] bg-[linear-gradient(90deg,transparent,rgba(25,183,242,.85),rgba(18,215,209,.48),transparent)] blur-2xl" />
                     </div>
 
