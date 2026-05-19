@@ -34,16 +34,42 @@ import sys as _sys
 if str(ROOT) not in _sys.path:
     _sys.path.insert(0, str(ROOT))
 
-# ── Agent brain (optional — loads only when DB is ready) ───────────────
+# ── Agent brain (auto-builds DB on first call if missing) ──────────────
 _agent_brain = None
+_agent_brain_init_attempted = False
 def _get_brain():
-    global _agent_brain
-    if _agent_brain is None:
+    global _agent_brain, _agent_brain_init_attempted
+    if _agent_brain is not None:
+        return _agent_brain
+    if _agent_brain_init_attempted:
+        return None
+    _agent_brain_init_attempted = True
+    try:
+        import sqlite3 as _sqlite3
+        _db_path = os.getenv("EMPIREX_DB_PATH", str(ROOT / "empirex_leads.db"))
         try:
-            import agent_brain
-            _agent_brain = agent_brain
+            _c = _sqlite3.connect(_db_path)
+            _row = _c.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='market_ohlcv' LIMIT 1"
+            ).fetchone()
+            _c.close()
+            _needs_build = _row is None
         except Exception:
-            _agent_brain = None
+            _needs_build = True
+        if _needs_build:
+            try:
+                import agent_database
+                print("[Agent] Building financial database (one-time)…", flush=True)
+                agent_database.build_database(verbose=False)
+                print("[Agent] Database build complete.", flush=True)
+            except Exception as _e:
+                print(f"[Agent] DB build failed: {_e}", flush=True)
+                return None
+        import agent_brain
+        _agent_brain = agent_brain
+    except Exception as _e:
+        print(f"[Agent] brain import failed: {_e}", flush=True)
+        _agent_brain = None
     return _agent_brain
 
 FX_BASE = {
