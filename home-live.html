@@ -1169,21 +1169,7 @@
                 try { navigator.clipboard.writeText(webhookUrl); } catch {}
                 setSuccess("URL הועתק ללוח"); setTimeout(() => setSuccess(null), 2000);
             }
-            if (!connectedBroker) {
-                return (
-                    <div className="mx-auto mt-12 max-w-[700px] rounded-[2rem] p-10 text-center" dir="rtl"
-                        style={{ background: "linear-gradient(135deg,#061D52 0%,#0a2a6e 100%)", boxShadow: "0 32px 80px rgba(6,29,82,.5)" }}>
-                        <div className="mx-auto mb-6 h-24 w-24 rounded-[2rem] flex items-center justify-center text-5xl"
-                            style={{ background: "linear-gradient(135deg,#0B4DFF,#6366f1)", boxShadow: "0 16px 48px rgba(11,77,255,.4)" }}>🤖</div>
-                        <h2 className="text-3xl font-black text-white mb-3">בוט מסחר אוטומטי</h2>
-                        <p className="text-sm font-semibold leading-7" style={{ color: "#7fa8e8" }}>חבר את חשבון הברוקר שלך כדי להפעיל את הבוט האוטומטי ולסחור עם MT5.</p>
-                        <button onClick={onConnectBroker} className="mt-7 rounded-2xl px-8 py-4 text-sm font-black text-white transition hover:-translate-y-1"
-                            style={{ background: "linear-gradient(135deg,#0B4DFF,#6366f1)", boxShadow: "0 16px 40px rgba(11,77,255,.4)" }}>
-                            ⚡ חבר ברוקר עכשיו
-                        </button>
-                    </div>
-                );
-            }
+            // No broker wall — UI renders with real state regardless of broker connection.
 
             /* ── derived stats ─────────────────────────────────────── */
             const today = new Date().toISOString().split("T")[0];
@@ -2898,21 +2884,7 @@
                 { label: "ניו יורק", pct: 27, color: "#13C9C7" },
             ];
 
-            if (!connectedBroker) {
-                return (
-                    <div className="mx-auto mt-12 max-w-[700px] rounded-[2rem] border border-white/80 bg-white/80 p-10 text-center shadow-[0_16px_55px_rgba(7,18,74,.07)] backdrop-blur-xl" dir="rtl">
-                        <div className="mx-auto mb-5 grid h-20 w-20 place-items-center rounded-[1.5rem] text-4xl text-white transition-all duration-500 bg-gradient-to-br from-[#0B4DFF] to-[#13C9C7] shadow-[0_12px_35px_rgba(11,77,255,.25)]">📊</div>
-                        <h2 className="text-2xl font-black text-[#07124A]">יומן מסחר</h2>
-                        <p className="mt-3 text-sm font-semibold text-slate-500 leading-7">
-                            חבר את חשבון הברוקר שלך כדי לראות את יומן המסחר — רווח/הפסד יומי, עסקאות, יחס הצלחה וסיכום AI אוטומטי.
-                        </p>
-                        <button onClick={onConnectBroker}
-                            className="mt-6 rounded-2xl bg-[#0B4DFF] px-7 py-3.5 text-sm font-black text-white shadow-[0_16px_40px_rgba(11,77,255,.28)] transition hover:-translate-y-0.5">
-                            חבר ברוקר עכשיו
-                        </button>
-                    </div>
-                );
-            }
+            // No broker wall — UI renders with real state regardless of broker connection.
 
             return (
                 <div className="mx-auto mt-6 max-w-[1400px]" dir="rtl">
@@ -3351,13 +3323,7 @@
                     <main className="px-5 pb-10">
                         {activeSection === "יומן" ? (
                             <JournalSection
-                                connectedBroker={connectedBroker || {
-                                    brokerId:"demo", brokerLabel:"Demo Broker", platformId:"demo", platformLabel:"Simulator",
-                                    accountName:"Demo Account", currency:"USD",
-                                    balance:10000, equity:10142.55, dailyPnl:142.55, dailyTrades:6, dailyWins:4,
-                                    openPositions:2, totalTrades:87, leverage:100, simulated:true,
-                                    aiSummary:"מצב הדגמה — חבר ברוקר אמיתי כדי לראות את הנתונים שלך."
-                                }}
+                                connectedBroker={connectedBroker || { brokerLabel:"ללא ברוקר", platformLabel:"—", currency:"USD" }}
                                 isRefreshing={brokerDataLoading}
                                 onRefresh={refreshBrokerData}
                                 onConnectBroker={() => setBrokerWizardOpen(true)}
@@ -3366,11 +3332,7 @@
                             />
                         ) : activeSection === "אוטומציה" ? (
                             <BotSection
-                                connectedBroker={connectedBroker || {
-                                    brokerId:"demo", brokerLabel:"Demo Broker", platformId:"demo", platformLabel:"Simulator",
-                                    accountName:"Demo Account", currency:"USD",
-                                    balance:10000, equity:10142.55, simulated:true
-                                }}
+                                connectedBroker={connectedBroker || { brokerLabel:"ללא ברוקר", platformLabel:"—", platformId:"", currency:"USD" }}
                                 onConnectBroker={() => setBrokerWizardOpen(true)}
                                 openTrades={botOpenTrades}
                                 setOpenTrades={setBotOpenTrades}
@@ -3379,10 +3341,7 @@
                             />
                         ) : activeSection === "AI Agent" ? (
                             <AgentSection
-                                connectedBroker={connectedBroker || {
-                                    brokerId:"demo", brokerLabel:"Demo Broker", platformId:"demo", platformLabel:"Simulator",
-                                    simulated:true
-                                }}
+                                connectedBroker={connectedBroker || { brokerLabel:"ללא ברוקר", platformLabel:"—" }}
                                 onConnectBroker={() => setBrokerWizardOpen(true)}
                             />
                         ) : (<>
