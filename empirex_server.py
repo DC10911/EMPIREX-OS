@@ -250,6 +250,8 @@ SMTP_USERNAME = os.getenv("SMTP_USERNAME", "").strip()
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "").strip()
 SMTP_FROM = os.getenv("SMTP_FROM", "EMPIREX OS <no-reply@empirex.local>").strip()
 SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "1").strip() == "1"
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "").strip()
+RESEND_FROM = os.getenv("RESEND_FROM", "").strip()
 
 validate_production_config()
 
@@ -429,11 +431,37 @@ def send_email_code(recipient_email: str, code: str, full_name: str) -> tuple[bo
         "אם לא ביקשת הרשמה, אפשר להתעלם מהמייל הזה."
     )
 
+    # Prefer HTTPS provider in production to avoid SMTP egress limitations.
+    if RESEND_API_KEY:
+        sender = RESEND_FROM or "onboarding@resend.dev"
+        payload = {
+            "from": sender,
+            "to": [recipient_email],
+            "subject": subject,
+            "text": body,
+        }
+        request = Request(
+            "https://api.resend.com/emails",
+            data=json.dumps(payload).encode("utf-8"),
+            method="POST",
+            headers={
+                "Authorization": f"Bearer {RESEND_API_KEY}",
+                "Content-Type": "application/json",
+            },
+        )
+        try:
+            with urlopen(request, timeout=20) as response:  # noqa: S310
+                if 200 <= response.status < 300:
+                    return True, "Verification email sent"
+                return False, f"Resend send failed: HTTP {response.status}"
+        except Exception as exc:  # noqa: BLE001
+            return False, f"Resend send failed: {exc}"
+
     if not (SMTP_HOST and SMTP_USERNAME and SMTP_PASSWORD):
         if APP_ENV != "production":
             print(f"[DEV OTP EMAIL] to={recipient_email} code={code}")
             return True, "DEV mode: code printed in server logs"
-        return False, "SMTP not configured"
+        return False, "Email provider not configured (set RESEND_API_KEY or SMTP_*)"
 
     msg = EmailMessage()
     msg["Subject"] = subject
