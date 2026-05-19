@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>EMPIREX OS — Enter the System</title>
+<meta name="description" content="EMPIREX OS — The operating system of your empire. Cinematic 3D experience." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --cyan:#12d7d1; --blue:#2739b7; --deep:#07124a; --ink:#02030a;
+    --gold:#ffb84d; --magenta:#ff3df0; --line: rgba(18,215,209,.18);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{background:var(--ink);color:#e8f0ff;font-family:'Heebo',sans-serif;overflow-x:hidden}
+  body{cursor:none}
+  a{color:inherit;text-decoration:none}
+  ::selection{background:var(--cyan);color:var(--ink)}
+
+  /* ============ CUSTOM CURSOR ============ */
+  .cur{position:fixed;top:0;left:0;width:8px;height:8px;background:#fff;border-radius:50%;z-index:9999;pointer-events:none;mix-blend-mode:difference;transform:translate(-50%,-50%);transition:width .25s,height .25s,background .25s}
+  .cur.r{width:48px;height:48px;background:transparent;border:1px solid var(--cyan);mix-blend-mode:normal;transition:width .35s cubic-bezier(.2,.9,.25,1),height .35s cubic-bezier(.2,.9,.25,1),left .12s linear,top .12s linear,border-color .25s}
+  .cur.is-hover.r{width:80px;height:80px;border-color:var(--gold)}
+  @media (pointer:coarse){body{cursor:auto}.cur{display:none}}
+
+  /* ============ LOADER ============ */
+  #boot{position:fixed;inset:0;z-index:1000;background:radial-gradient(ellipse at center, #061226 0%, var(--ink) 70%);display:grid;place-items:center;transition:opacity 1.2s ease 0.4s, visibility 1.2s ease 0.4s}
+  #boot.done{opacity:0;visibility:hidden}
+  .boot-in{text-align:center;width:min(440px,80vw)}
+  .boot-mark{font-family:'Space Mono',monospace;font-size:13px;letter-spacing:.6em;color:var(--cyan);margin-bottom:24px}
+  .boot-logo{font-weight:900;font-size:34px;letter-spacing:.18em;background:linear-gradient(90deg,#fff 0%,var(--cyan) 50%,#fff 100%);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shimmer 2.6s linear infinite;margin-bottom:32px}
+  @keyframes shimmer{to{background-position:-200% 0}}
+  .boot-bar{height:1px;background:rgba(255,255,255,.08);overflow:hidden;margin-bottom:14px}
+  .boot-bar i{display:block;height:100%;width:0%;background:linear-gradient(90deg,var(--cyan),var(--gold));transition:width .25s ease}
+  .boot-pct{font-family:'Space Mono',monospace;font-size:11px;color:rgba(255,255,255,.5);letter-spacing:.2em}
+  .boot-log{margin-top:18px;font-family:'Space Mono',monospace;font-size:10px;color:rgba(18,215,209,.5);letter-spacing:.15em;height:14px}
+
+  /* ============ WEBGL CANVAS ============ */
+  #scene{position:fixed;inset:0;width:100%;height:100%;z-index:0;display:block}
+
+  /* ============ HUD ============ */
+  .hud{position:fixed;inset:0;z-index:10;pointer-events:none}
+  .hud > *{pointer-events:auto}
+  .hud-top{position:absolute;top:24px;left:24px;right:24px;display:flex;justify-content:space-between;align-items:center;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.25em;color:rgba(232,240,255,.55);text-transform:uppercase}
+  .hud-brand{font-family:'Heebo',sans-serif;font-weight:900;font-size:18px;letter-spacing:.15em;color:#fff}
+  .hud-brand span{color:var(--cyan)}
+  .hud-nav{display:flex;gap:22px}
+  .hud-nav a{transition:color .25s}
+  .hud-nav a:hover{color:var(--cyan)}
+  .hud-bot{position:absolute;bottom:20px;left:24px;right:24px;display:flex;justify-content:space-between;align-items:center;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.25em;color:rgba(232,240,255,.4);text-transform:uppercase}
+  .hud-meter{display:flex;align-items:center;gap:10px}
+  .hud-meter .dot{width:6px;height:6px;background:var(--cyan);border-radius:50%;box-shadow:0 0 12px var(--cyan);animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{50%{opacity:.3}}
+
+  /* ============ SCROLL TRACK ============ */
+  /* invisible "track" that the scrollbar drives — drives camera anim */
+  .track{position:relative;z-index:2;width:100%}
+  .scene{position:relative;width:100%;height:100vh;display:grid;place-items:center;padding:0 24px}
+  .panel{max-width:720px;text-align:center;opacity:0;transform:translateY(40px);transition:opacity 1.2s cubic-bezier(.2,.9,.25,1),transform 1.2s cubic-bezier(.2,.9,.25,1)}
+  .panel.in{opacity:1;transform:translateY(0)}
+  .eyebrow{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.4em;color:var(--cyan);margin-bottom:18px;text-transform:uppercase}
+  h1.h{font-size:clamp(40px,7.5vw,108px);font-weight:900;line-height:.95;letter-spacing:-.03em;margin-bottom:24px;background:linear-gradient(180deg,#fff 0%,#fff 60%,rgba(255,255,255,.4) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 80px rgba(18,215,209,.25)}
+  h2.h{font-size:clamp(32px,5.5vw,72px);font-weight:900;line-height:1;letter-spacing:-.025em;margin-bottom:20px;color:#fff}
+  h2.h em{font-style:normal;color:var(--cyan);font-weight:900}
+  .lead{font-size:clamp(15px,1.5vw,20px);color:rgba(232,240,255,.7);line-height:1.65;max-width:580px;margin:0 auto 32px}
+  .cta-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+  .btn{display:inline-flex;align-items:center;gap:10px;padding:14px 26px;font-family:'Heebo',sans-serif;font-weight:700;font-size:14px;letter-spacing:.05em;border-radius:999px;border:1px solid var(--cyan);background:rgba(18,215,209,.08);color:#fff;backdrop-filter:blur(8px);transition:all .35s cubic-bezier(.2,.9,.25,1);position:relative;overflow:hidden}
+  .btn:hover{background:var(--cyan);color:var(--ink);transform:translateY(-2px);box-shadow:0 12px 40px rgba(18,215,209,.4)}
+  .btn.ghost{border-color:rgba(255,255,255,.18);background:transparent}
+  .btn.ghost:hover{border-color:#fff;background:rgba(255,255,255,.05);color:#fff;box-shadow:none}
+
+  /* === scene-specific === */
+  .scene-1 .panel{max-width:900px}
+  .scene-2 .panel,.scene-3 .panel,.scene-4 .panel{text-align:right;margin:0 0 0 auto;padding-right:0;padding-left:5vw}
+  @media (min-width:900px){
+    .scene-2 .panel,.scene-3 .panel,.scene-4 .panel{margin-right:0;width:48%;max-width:520px;padding-left:0}
+    .scene-2{justify-items:end;padding-right:6vw}
+    .scene-3{justify-items:start;padding-left:6vw}
+    .scene-3 .panel{margin-left:0;margin-right:auto}
+    .scene-4{justify-items:end;padding-right:6vw}
+  }
+
+  /* modules grid in final scene */
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:28px 0 36px;text-align:right}
+  .card{padding:22px;border:1px solid var(--line);background:rgba(6,18,38,.4);backdrop-filter:blur(10px);border-radius:14px;transition:all .35s;cursor:none}
+  .card:hover{border-color:var(--cyan);background:rgba(6,18,38,.75);transform:translateY(-4px);box-shadow:0 16px 40px rgba(18,215,209,.15)}
+  .card .num{font-family:'Space Mono',monospace;font-size:10px;color:var(--cyan);letter-spacing:.3em;margin-bottom:10px}
+  .card .t{font-weight:900;font-size:18px;color:#fff;margin-bottom:8px}
+  .card .d{font-size:13px;color:rgba(232,240,255,.55);line-height:1.5}
+
+  /* form */
+  .form{display:grid;gap:12px;text-align:right;max-width:480px;margin:0 auto}
+  .form label{display:block;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.25em;color:rgba(18,215,209,.7);margin-bottom:6px;text-transform:uppercase}
+  .form input,.form select{width:100%;padding:14px 16px;font-family:'Heebo',sans-serif;font-size:15px;background:rgba(2,3,10,.6);color:#fff;border:1px solid var(--line);border-radius:10px;backdrop-filter:blur(8px);transition:border-color .25s;outline:none;cursor:none}
+  .form input:focus,.form select:focus{border-color:var(--cyan);box-shadow:0 0 0 4px rgba(18,215,209,.1)}
+  .form .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:600px){.form .row2{grid-template-columns:1fr}}
+  .msg{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.15em;color:var(--cyan);min-height:16px;margin-top:8px;text-align:center}
+  .msg.err{color:#ff6b6b}
+  .otp-row{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;direction:ltr;margin:18px 0}
+  .otp-row input{padding:18px 0;text-align:center;font-family:'Space Mono',monospace;font-size:24px;font-weight:700}
+
+  /* progress indicator */
+  .progress{position:fixed;left:24px;top:50%;transform:translateY(-50%);z-index:11;display:flex;flex-direction:column;gap:14px}
+  .progress .seg{width:2px;height:36px;background:rgba(255,255,255,.1);transition:background .4s}
+  .progress .seg.on{background:var(--cyan);box-shadow:0 0 10px var(--cyan)}
+
+  /* scroll hint */
+  .scroll-hint{position:absolute;bottom:60px;left:50%;transform:translateX(-50%);font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.4em;color:rgba(255,255,255,.4);text-transform:uppercase;animation:bob 2.2s ease-in-out infinite}
+  @keyframes bob{50%{transform:translate(-50%,12px);opacity:.7}}
+  .scene-1 .scroll-hint::after{content:'';display:block;width:1px;height:40px;background:linear-gradient(180deg,var(--cyan),transparent);margin:14px auto 0}
+</style>
+</head>
+<body>
+
+<!-- ===== CUSTOM CURSOR ===== -->
+<div class="cur" id="cd"></div>
+<div class="cur r" id="cr"></div>
+
+<!-- ===== LOADER ===== -->
+<div id="boot">
+  <div class="boot-in">
+    <div class="boot-mark">// SYSTEM BOOT</div>
+    <div class="boot-logo">EMPIREX OS</div>
+    <div class="boot-bar"><i id="bootBar"></i></div>
+    <div class="boot-pct"><span id="bootPct">0</span>%</div>
+    <div class="boot-log" id="bootLog">initializing kernel…</div>
+  </div>
+</div>
+
+<!-- ===== WEBGL ===== -->
+<canvas id="scene"></canvas>
+
+<!-- ===== HUD ===== -->
+<div class="hud">
+  <div class="hud-top">
+    <div class="hud-brand">EMPIREX <span>OS</span></div>
+    <div class="hud-nav">
+      <a href="#core" data-hover>גרעין</a>
+      <a href="#engine" data-hover>מנוע</a>
+      <a href="#agent" data-hover>סוכן</a>
+      <a href="#join" data-hover>הצטרפות</a>
+    </div>
+    <div>LIVE · v2026.5</div>
+  </div>
+  <div class="hud-bot">
+    <div>LAT 32.07° · LON 34.78°</div>
+    <div class="hud-meter"><div class="dot"></div><span id="hudPct">SCENE 1 / 5</span></div>
+    <div>TLS 1.3 · ENCRYPTED</div>
+  </div>
+</div>
+
+<!-- ===== SCENE PROGRESS DOTS ===== -->
+<div class="progress" id="prog">
+  <div class="seg on"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div>
+</div>
+
+<!-- ===== SCROLL TRACK ===== -->
+<div class="track" id="track">
+
+  <!-- SCENE 1 — HERO -->
+  <section class="scene scene-1" data-scene="0">
+    <div class="panel">
+      <div class="eyebrow">// SYSTEM ONLINE — ENTERING THE EMPIRE</div>
+      <h1 class="h">מערכת ההפעלה<br/>של האימפריה שלך</h1>
+      <p class="lead">CRM, שיווק, אנליטיקה ו-AI במנוע אחד. נבנה לעסק שמתכוון לכבוש שוק — לא רק להחזיק מעמד.</p>
+      <div class="cta-row">
+        <a href="#join" class="btn" data-hover>הפעל את האימפריה →</a>
+        <a href="#engine" class="btn ghost" data-hover>צפה בדמו</a>
+      </div>
+    </div>
+    <div class="scroll-hint">SCROLL TO ENTER</div>
+  </section>
+
+  <!-- SCENE 2 — CORE -->
+  <section class="scene scene-2" data-scene="1" id="core">
+    <div class="panel">
+      <div class="eyebrow">// 01 — THE CORE</div>
+      <h2 class="h">גרעין שמרגיש <em>את הדופק</em> של העסק שלך.</h2>
+      <p class="lead">לב המערכת — מנוע נתונים בזמן אמת שמחבר כל מודול, כל ליד, כל פעולה. סינתזה מתמדת. אפס פיגור.</p>
+    </div>
+  </section>
+
+  <!-- SCENE 3 — ENGINE -->
+  <section class="scene scene-3" data-scene="2" id="engine">
+    <div class="panel">
+      <div class="eyebrow">// 02 — THE ENGINE</div>
+      <h2 class="h">ארבעה מנועים. <em>אימפריה אחת.</em></h2>
+      <p class="lead">CRM שלא מאבד ליד. שיווק שמתפעל את עצמו. אנליטיקה שאומרת מה לעשות. סוכן AI שעובד 24/7. הכל תחת קונסולה אחת.</p>
+    </div>
+  </section>
+
+  <!-- SCENE 4 — AGENT -->
+  <section class="scene scene-4" data-scene="3" id="agent">
+    <div class="panel">
+      <div class="eyebrow">// 03 — THE AGENT</div>
+      <h2 class="h">סוכן AI שעובד <em>גם כשאתה ישן.</em></h2>
+      <p class="lead">סוכן עסקי שמתעדף משימות, עונה לפניות, מציע צעדים אסטרטגיים — וגם מבצע. בקרוב: התראות בזמן אמת, אינטגרציות מלאות, ושכבת LangGraph לזיכרון מתמשך.</p>
+    </div>
+  </section>
+
+  <!-- SCENE 5 — JOIN -->
+  <section class="scene" data-scene="4" id="join">
+    <div class="panel" style="max-width:520px">
+      <div class="eyebrow">// 04 — INITIATE PROTOCOL</div>
+      <h2 class="h">הפעל את האימפריה.</h2>
+      <p class="lead">שדה אחד. אימייל אחד. ואתה בפנים. נשלח לך קוד אימות אמיתי.</p>
+      <form class="form" id="step1" onsubmit="return false">
+        <div>
+          <label>שם מלא</label>
+          <input id="fn" placeholder="ישראל ישראלי" autocomplete="name" />
+        </div>
+        <div class="row2">
+          <div>
+            <label>אימייל</label>
+            <input id="em" type="email" placeholder="you@company.com" autocomplete="email" />
+          </div>
+          <div>
+            <label>פרופיל</label>
+            <select id="pf">
+              <option>Founder</option><option>Developer</option>
+              <option>Marketer</option><option>Operator</option><option>Other</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn" id="goStep1" data-hover style="justify-content:center;width:100%;margin-top:6px">שלח קוד אימות →</button>
+        <div class="msg" id="msg"></div>
+      </form>
+
+      <form class="form" id="step2" onsubmit="return false" style="display:none">
+        <label style="text-align:center">הזן את 6 הספרות שנשלחו אליך</label>
+        <div class="otp-row" id="otp">
+          <input maxlength="1" inputmode="numeric"><input maxlength="1" inputmode="numeric">
+          <input maxlength="1" inputmode="numeric"><input maxlength="1" inputmode="numeric">
+          <input maxlength="1" inputmode="numeric"><input maxlength="1" inputmode="numeric">
+        </div>
+        <button class="btn" id="goStep2" data-hover style="justify-content:center;width:100%">אמת ונכנס →</button>
+        <div style="text-align:center;margin-top:8px"><a href="#" id="resend" style="font-family:'Space Mono',monospace;font-size:11px;color:var(--cyan);letter-spacing:.15em" data-hover>שלח קוד מחדש</a></div>
+      </form>
+    </div>
+  </section>
+
+</div>
+
+<!-- ============================================================ -->
+<!--                    WEBGL CINEMATIC SCENE                     -->
+<!-- ============================================================ -->
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+
+// ============ BOOT LOADER ============
+const bootBar=document.getElementById('bootBar'),
+      bootPct=document.getElementById('bootPct'),
+      bootLog=document.getElementById('bootLog');
+const logs=['initializing kernel…','loading geometry buffers…','compiling shaders…','allocating particle field…','syncing post-process pipeline…','establishing neural link…','system ready.'];
+let bp=0; const bootI=setInterval(()=>{ bp=Math.min(100,bp+Math.random()*7+2); bootBar.style.width=bp+'%'; bootPct.textContent=Math.floor(bp); bootLog.textContent=logs[Math.min(logs.length-1,Math.floor(bp/15))]; if(bp>=100){clearInterval(bootI); setTimeout(()=>document.getElementById('boot').classList.add('done'),350);} },110);
+
+// ============ RENDERER ============
+const canvas=document.getElementById('scene');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.setClearColor(0x02030a,1);
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.15;
+
+const scene=new THREE.Scene();
+scene.fog=new THREE.FogExp2(0x02030a,0.018);
+
+const camera=new THREE.PerspectiveCamera(58,innerWidth/innerHeight,0.1,400);
+camera.position.set(0,0,18);
+
+// ============ LIGHTS ============
+scene.add(new THREE.AmbientLight(0x223344,.5));
+const kLight=new THREE.PointLight(0x12d7d1,3.5,80);kLight.position.set(8,5,8);scene.add(kLight);
+const fLight=new THREE.PointLight(0x2739b7,2.8,80);fLight.position.set(-8,-3,6);scene.add(fLight);
+const rLight=new THREE.PointLight(0xff3df0,1.6,80);rLight.position.set(0,10,-10);scene.add(rLight);
+const gLight=new THREE.PointLight(0xffb84d,1.4,60);gLight.position.set(-3,8,4);scene.add(gLight);
+
+// ============ NEBULA SKYBOX (custom shader) ============
+const skyGeo=new THREE.SphereGeometry(180,32,32);
+const skyMat=new THREE.ShaderMaterial({
+  side:THREE.BackSide,depthWrite:false,
+  uniforms:{ time:{value:0} },
+  vertexShader:`varying vec3 vWorld;void main(){vWorld=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+  fragmentShader:`
+    varying vec3 vWorld; uniform float time;
+    float hash(vec3 p){p=fract(p*0.3183099+.1);p*=17.0;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
+    float noise(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.0-2.0*f);
+      return mix(mix(mix(hash(i+vec3(0,0,0)),hash(i+vec3(1,0,0)),f.x),
+                     mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),
+                 mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),
+                     mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}
+    float fbm(vec3 p){float v=0.,a=.5;for(int i=0;i<5;i++){v+=a*noise(p);p*=2.05;a*=.5;}return v;}
+    void main(){
+      vec3 dir=normalize(vWorld);
+      float n=fbm(dir*1.7+vec3(0,0,time*.018));
+      float n2=fbm(dir*3.6+vec3(time*.01,0,0));
+      vec3 col=vec3(0.008,0.012,0.04);
+      col+=vec3(0.05,0.22,0.30)*pow(n,3.5)*1.5;
+      col+=vec3(0.15,0.05,0.35)*pow(n2,4.0)*1.2;
+      col+=vec3(0.9,0.7,0.3)*pow(max(0.,n-0.55),5.)*1.3;
+      // star sparkles
+      float s=fract(sin(dot(dir.xy*512.,vec2(12.9898,78.233)))*43758.5453);
+      col+=vec3(1.)*step(.9985,s)*1.2;
+      gl_FragColor=vec4(col,1.);
+    }`
+});
+const sky=new THREE.Mesh(skyGeo,skyMat);scene.add(sky);
+
+// ============ THE CORE — animated noise displaced icosahedron + fresnel ============
+const coreGroup=new THREE.Group();scene.add(coreGroup);
+
+const coreGeo=new THREE.IcosahedronGeometry(2.4,32);
+const coreMat=new THREE.ShaderMaterial({
+  uniforms:{ time:{value:0}, baseColor:{value:new THREE.Color(0x12d7d1)}, hotColor:{value:new THREE.Color(0xffb84d)} },
+  vertexShader:`
+    varying vec3 vN; varying vec3 vWPos; varying float vDisp;
+    uniform float time;
+    // simplex-like noise
+    float hash(vec3 p){p=fract(p*0.3183099+.1);p*=17.0;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
+    float noise(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.0-2.0*f);
+      return mix(mix(mix(hash(i+vec3(0,0,0)),hash(i+vec3(1,0,0)),f.x),
+                     mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),
+                 mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),
+                     mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}
+    float fbm(vec3 p){float v=0.,a=.5;for(int i=0;i<4;i++){v+=a*noise(p);p*=2.1;a*=.5;}return v;}
+    void main(){
+      vec3 p=position;
+      float n=fbm(p*1.4+vec3(0,0,time*.5));
+      float disp=n*0.55+sin(time*1.2+p.y*2.0)*.04;
+      vDisp=disp;
+      vec3 np=p+normal*disp;
+      vec4 wp=modelMatrix*vec4(np,1.);
+      vWPos=wp.xyz;
+      vN=normalize(normalMatrix*normal);
+      gl_Position=projectionMatrix*viewMatrix*wp;
+    }`,
+  fragmentShader:`
+    varying vec3 vN; varying vec3 vWPos; varying float vDisp;
+    uniform float time; uniform vec3 baseColor; uniform vec3 hotColor;
+    void main(){
+      vec3 V=normalize(cameraPosition-vWPos);
+      float fres=pow(1.0-max(dot(vN,V),0.0),2.5);
+      vec3 col=mix(baseColor*0.4, hotColor, smoothstep(.3,.7,vDisp+.4));
+      col+=fres*vec3(.6,1.,1.)*1.4;
+      col+=baseColor*sin(time*2.+vDisp*8.)*.15;
+      // inner glow
+      col*=1.0+pow(fres,3.)*1.5;
+      gl_FragColor=vec4(col,1.0);
+    }`
+});
+const core=new THREE.Mesh(coreGeo,coreMat);coreGroup.add(core);
+
+// outer wire shell
+const wire=new THREE.Mesh(
+  new THREE.IcosahedronGeometry(3.05,3),
+  new THREE.MeshBasicMaterial({color:0x12d7d1,wireframe:true,transparent:true,opacity:.18})
+);
+coreGroup.add(wire);
+
+// glow sprite halo
+const glowTex=(()=>{const c=document.createElement('canvas');c.width=c.height=512;const g=c.getContext('2d');
+  const grd=g.createRadialGradient(256,256,0,256,256,256);
+  grd.addColorStop(0,'rgba(18,215,209,1)');grd.addColorStop(.25,'rgba(39,57,183,.4)');grd.addColorStop(.6,'rgba(7,18,74,.15)');grd.addColorStop(1,'rgba(0,0,0,0)');
+  g.fillStyle=grd;g.fillRect(0,0,512,512);return new THREE.CanvasTexture(c);
+})();
+const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:0xffffff,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));
+halo.scale.set(14,14,1);coreGroup.add(halo);
+
+// orbit rings
+function makeRing(r,col,t,seg=300){
+  const m=new THREE.Mesh(new THREE.TorusGeometry(r,t,16,seg),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.9,blending:THREE.AdditiveBlending}));
+  return m;
+}
+const ringA=makeRing(4.5,0x12d7d1,.012);ringA.rotation.x=Math.PI/2.3;coreGroup.add(ringA);
+const ringB=makeRing(5.4,0xffb84d,.009);ringB.rotation.x=Math.PI/3;ringB.rotation.y=Math.PI/4;coreGroup.add(ringB);
+const ringC=makeRing(6.3,0xff3df0,.006);ringC.rotation.x=Math.PI/1.7;coreGroup.add(ringC);
+const ringD=makeRing(7.3,0x12d7d1,.004);ringD.rotation.x=Math.PI/2.5;ringD.rotation.z=Math.PI/5;coreGroup.add(ringD);
+
+// orbiting satellite cubes (modules)
+const satellites=[];
+const satColors=[0x12d7d1,0xffb84d,0xff3df0,0x2739b7];
+for(let i=0;i<8;i++){
+  const g=new THREE.OctahedronGeometry(.35,0);
+  const m=new THREE.MeshPhysicalMaterial({color:satColors[i%4],emissive:satColors[i%4],emissiveIntensity:.6,metalness:.7,roughness:.2,clearcoat:1});
+  const mesh=new THREE.Mesh(g,m);
+  satellites.push({mesh,radius:5+Math.random()*3,speed:.2+Math.random()*.3,phase:Math.random()*Math.PI*2,tilt:Math.random()*Math.PI});
+  coreGroup.add(mesh);
+}
+
+// ============ PARTICLE FIELD ============
+const N=9000;
+const positions=new Float32Array(N*3);
+const seeds=new Float32Array(N);
+const colorsArr=new Float32Array(N*3);
+const cA=new THREE.Color(0x12d7d1),cB=new THREE.Color(0xffb84d),cC=new THREE.Color(0xff3df0),cD=new THREE.Color(0xffffff);
+for(let i=0;i<N;i++){
+  const r=12+Math.random()*70;
+  const t=Math.random()*Math.PI*2;
+  const p=Math.acos(2*Math.random()-1);
+  positions[i*3]=r*Math.sin(p)*Math.cos(t);
+  positions[i*3+1]=r*Math.sin(p)*Math.sin(t);
+  positions[i*3+2]=r*Math.cos(p);
+  seeds[i]=Math.random();
+  const k=Math.random();
+  const c=k<.5?cA:k<.78?cB:k<.92?cC:cD;
+  colorsArr[i*3]=c.r;colorsArr[i*3+1]=c.g;colorsArr[i*3+2]=c.b;
+}
+const pGeo=new THREE.BufferGeometry();
+pGeo.setAttribute('position',new THREE.BufferAttribute(positions,3));
+pGeo.setAttribute('seed',new THREE.BufferAttribute(seeds,1));
+pGeo.setAttribute('color',new THREE.BufferAttribute(colorsArr,3));
+const pMat=new THREE.ShaderMaterial({
+  uniforms:{ time:{value:0}, pixR:{value:renderer.getPixelRatio()} },
+  transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,
+  vertexShader:`
+    attribute float seed; varying vec3 vC; uniform float time; uniform float pixR;
+    void main(){
+      vC=color;
+      vec3 p=position;
+      // gentle swirl
+      float a=time*.03+seed*6.28;
+      mat2 R=mat2(cos(a),-sin(a),sin(a),cos(a));
+      p.xz=R*p.xz;
+      vec4 mv=modelViewMatrix*vec4(p,1.);
+      gl_PointSize=(1.5+seed*2.8)*pixR*(300./-mv.z);
+      gl_Position=projectionMatrix*mv;
+    }`,
+  fragmentShader:`
+    varying vec3 vC;
+    void main(){
+      vec2 c=gl_PointCoord-.5;
+      float d=length(c);
+      float a=smoothstep(.5,.0,d);
+      gl_FragColor=vec4(vC,a*.95);
+    }`
+});
+pMat.extensions={derivatives:true};
+const points=new THREE.Points(pGeo,pMat);
+scene.add(points);
+
+// ============ POST-PROCESSING ============
+const composer=new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene,camera));
+const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),1.4,1.0,0.1);
+composer.addPass(bloom);
+
+const finalPass=new ShaderPass({
+  uniforms:{tDiffuse:{value:null},time:{value:0},aberration:{value:.0025},vignette:{value:1.05},grain:{value:.04}},
+  vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+  fragmentShader:`
+    uniform sampler2D tDiffuse; uniform float time,aberration,vignette,grain;
+    varying vec2 vUv;
+    void main(){
+      vec2 dir=vUv-.5;
+      float d=length(dir);
+      vec2 o=normalize(dir)*aberration*d;
+      float r=texture2D(tDiffuse,vUv-o).r;
+      float g=texture2D(tDiffuse,vUv).g;
+      float b=texture2D(tDiffuse,vUv+o).b;
+      vec3 col=vec3(r,g,b);
+      // vignette
+      col*=1.0-d*d*vignette*.8;
+      // film grain
+      float n=fract(sin(dot(vUv*734.+time*7.,vec2(12.9898,78.233)))*43758.5453);
+      col+=(n-.5)*grain;
+      // subtle scanline
+      col*=.94+.06*sin(vUv.y*innerHeight*.0+time*0.);
+      gl_FragColor=vec4(col,1.);
+    }`
+});
+composer.addPass(finalPass);
+
+// ============ CAMERA PATH (Bezier through 5 scenes) ============
+const cameraPath=[
+  new THREE.Vector3( 0,  0, 18),   // S1 — far, looking at core
+  new THREE.Vector3( 6,  2,  9),   // S2 — orbit right
+  new THREE.Vector3(-6,  3,  8),   // S3 — orbit left high
+  new THREE.Vector3( 4, -3,  6),   // S4 — diagonal low
+  new THREE.Vector3( 0,  0,  3.5), // S5 — inside the core
+];
+const cameraLook=[
+  new THREE.Vector3(0,0,0),
+  new THREE.Vector3(0,0,0),
+  new THREE.Vector3(0,0,0),
+  new THREE.Vector3(0,0,0),
+  new THREE.Vector3(0,0,0),
+];
+
+// ============ SMOOTH SCROLL (Lenis-style) ============
+let scrollTarget=0, scrollCurrent=0;
+const track=document.getElementById('track');
+function getMax(){return Math.max(1, document.body.scrollHeight-innerHeight);}
+addEventListener('scroll',()=>{ scrollTarget=window.scrollY/getMax(); },{passive:true});
+
+// ============ POINTER PARALLAX ============
+let pointer={x:0,y:0,tx:0,ty:0};
+addEventListener('pointermove',e=>{pointer.tx=(e.clientX/innerWidth)*2-1;pointer.ty=(e.clientY/innerHeight)*2-1});
+
+// ============ RESIZE ============
+addEventListener('resize',()=>{
+  renderer.setSize(innerWidth,innerHeight);
+  composer.setSize(innerWidth,innerHeight);
+  camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
+});
+
+// ============ SCENE INDICATORS ============
+const segs=[...document.querySelectorAll('#prog .seg')];
+const hudPct=document.getElementById('hudPct');
+const panels=[...document.querySelectorAll('.scene .panel')];
+const io=new IntersectionObserver((entries)=>{
+  entries.forEach(en=>{
+    if(en.isIntersecting) en.target.classList.add('in');
+  });
+},{threshold:.35});
+panels.forEach(p=>io.observe(p));
+
+// ============ ANIMATE ============
+const clock=new THREE.Clock();
+function smoothstep(a,b,x){x=Math.min(1,Math.max(0,(x-a)/(b-a)));return x*x*(3-2*x);}
+function lerpV(a,b,t,out){out.x=a.x+(b.x-a.x)*t;out.y=a.y+(b.y-a.y)*t;out.z=a.z+(b.z-a.z)*t}
+const _tmpPos=new THREE.Vector3(),_tmpLook=new THREE.Vector3();
+
+function loop(){
+  const t=clock.getElapsedTime();
+  // smooth scroll
+  scrollCurrent+=(scrollTarget-scrollCurrent)*.07;
+  pointer.x+=(pointer.tx-pointer.x)*.06;
+  pointer.y+=(pointer.ty-pointer.y)*.06;
+
+  // shaders
+  skyMat.uniforms.time.value=t;
+  coreMat.uniforms.time.value=t;
+  pMat.uniforms.time.value=t;
+  finalPass.uniforms.time.value=t;
+
+  // core motion
+  coreGroup.rotation.y=t*.12;
+  coreGroup.rotation.x=Math.sin(t*.2)*.15;
+  wire.rotation.y=-t*.18;wire.rotation.x=t*.13;
+  halo.material.opacity=.7+Math.sin(t*1.4)*.2;
+
+  // rings
+  ringA.rotation.z=t*.4;
+  ringB.rotation.z=-t*.32;
+  ringC.rotation.x=Math.PI/1.7+Math.sin(t*.27)*.18;
+  ringD.rotation.y=t*.5;ringD.rotation.z=-t*.2;
+
+  // satellites
+  satellites.forEach((s,i)=>{
+    const a=t*s.speed+s.phase;
+    s.mesh.position.set(
+      Math.cos(a)*s.radius,
+      Math.sin(a*.8+s.tilt)*1.8,
+      Math.sin(a)*s.radius
+    );
+    s.mesh.rotation.x=t*1.2+i;
+    s.mesh.rotation.y=t*.8+i;
+  });
+
+  // particles drift
+  points.rotation.y=t*.013;
+
+  // lights pulse
+  kLight.intensity=3.5+Math.sin(t*1.3)*.7;
+  rLight.intensity=1.6+Math.sin(t*1.7+1)*.4;
+
+  // ===== camera path =====
+  // map scrollCurrent [0..1] to segments
+  const segs=cameraPath.length-1;
+  const s=Math.min(.9999, Math.max(0,scrollCurrent))*segs;
+  const i=Math.floor(s);
+  const f=smoothstep(0,1,s-i);
+  const a=cameraPath[i], b=cameraPath[Math.min(segs,i+1)];
+  lerpV(a,b,f,_tmpPos);
+  const la=cameraLook[i], lb=cameraLook[Math.min(segs,i+1)];
+  lerpV(la,lb,f,_tmpLook);
+  // mouse parallax additive
+  _tmpPos.x += pointer.x*.6;
+  _tmpPos.y += -pointer.y*.5;
+  camera.position.lerp(_tmpPos,.08);
+  camera.lookAt(_tmpLook);
+
+  // dynamic FOV for final dive
+  const targetFov = 58 - smoothstep(.75,1,scrollCurrent)*22;
+  camera.fov += (targetFov-camera.fov)*.05;
+  camera.updateProjectionMatrix();
+
+  // scene indicators
+  const sceneIdx=Math.min(segs, Math.round(scrollCurrent*segs));
+  document.querySelectorAll('#prog .seg').forEach((el,k)=>el.classList.toggle('on',k<=sceneIdx));
+  hudPct.textContent = `SCENE ${sceneIdx+1} / ${segs+1}`;
+
+  composer.render();
+  requestAnimationFrame(loop);
+}
+loop();
+
+// ============ CUSTOM CURSOR ============
+const cd=document.getElementById('cd'),cr=document.getElementById('cr');
+let mx=innerWidth/2,my=innerHeight/2,rx=mx,ry=my;
+addEventListener('pointermove',e=>{mx=e.clientX;my=e.clientY;cd.style.left=mx+'px';cd.style.top=my+'px'});
+(function tick(){rx+=(mx-rx)*.18;ry+=(my-ry)*.18;cr.style.left=rx+'px';cr.style.top=ry+'px';requestAnimationFrame(tick)})();
+document.querySelectorAll('[data-hover], .card, input, select').forEach(el=>{
+  el.addEventListener('mouseenter',()=>cr.classList.add('is-hover'));
+  el.addEventListener('mouseleave',()=>cr.classList.remove('is-hover'));
+});
+
+// ============ REGISTRATION (real API) ============
+const API=location.origin.includes('localhost')?'http://localhost:5501':'';
+const msgEl=document.getElementById('msg');
+const setMsg=(t,k='')=>{msgEl.textContent=t;msgEl.className='msg '+k};
+const s1=document.getElementById('step1'), s2=document.getElementById('step2');
+const fn=document.getElementById('fn'), em=document.getElementById('em'), pf=document.getElementById('pf');
+let regId=null, regEmail=null;
+
+document.getElementById('goStep1').addEventListener('click', async()=>{
+  setMsg('');
+  if(!fn.value.trim()||!em.value.trim()){ setMsg('מלא שם ואימייל','err'); return; }
+  setMsg('שולח קוד אימות…');
+  try{
+    const r=await fetch(API+'/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fullName:fn.value.trim(),email:em.value.trim(),profile:pf.value,verificationChannel:'email'})});
+    const j=await r.json();
+    if(j.ok){
+      regId=j.data?.registrationId; regEmail=em.value.trim();
+      s1.style.display='none'; s2.style.display='grid';
+      setMsg(''); document.querySelector('#otp input').focus();
+    } else setMsg(j.message||'שגיאה','err');
+  }catch(e){ setMsg('כשל רשת','err'); }
+});
+
+const otps=[...document.querySelectorAll('#otp input')];
+otps.forEach((inp,i)=>{
+  inp.addEventListener('input',e=>{
+    inp.value=inp.value.replace(/\D/g,'').slice(0,1);
+    if(inp.value&&i<5) otps[i+1].focus();
+  });
+  inp.addEventListener('keydown',e=>{ if(e.key==='Backspace'&&!inp.value&&i>0) otps[i-1].focus(); });
+  inp.addEventListener('paste',e=>{
+    const d=(e.clipboardData||window.clipboardData).getData('text').replace(/\D/g,'').slice(0,6);
+    if(!d) return; e.preventDefault();
+    [...d].forEach((ch,k)=>{ if(otps[k]) otps[k].value=ch; });
+    otps[Math.min(5,d.length-1)].focus();
+  });
+});
+
+document.getElementById('goStep2').addEventListener('click', async()=>{
+  const code=otps.map(o=>o.value).join('');
+  if(code.length!==6){ setMsg('הזן 6 ספרות','err'); return; }
+  setMsg('מאמת…');
+  try{
+    const r=await fetch(API+'/api/verify-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({registrationId:regId,code})});
+    const j=await r.json();
+    if(j.ok){
+      setMsg('✓ אומת. מעביר אותך פנימה…');
+      setTimeout(()=>{ location.href=j.data?.redirectTo||'/home-live.html'; },900);
+    } else setMsg(j.message||'קוד שגוי','err');
+  }catch(e){ setMsg('כשל רשת','err'); }
+});
+
+document.getElementById('resend').addEventListener('click', async e=>{
+  e.preventDefault();
+  if(!regEmail){ setMsg('חזור לשלב ההרשמה','err'); return; }
+  setMsg('שולח קוד מחדש…');
+  try{
+    const r=await fetch(API+'/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fullName:fn.value.trim()||'User',email:regEmail,profile:pf.value,verificationChannel:'email'})});
+    const j=await r.json();
+    if(j.ok){ regId=j.data?.registrationId; setMsg('קוד חדש נשלח'); }
+    else setMsg(j.message||'שגיאה','err');
+  }catch(e){ setMsg('כשל רשת','err'); }
+});
+
+</script>
+</body>
+</html>
