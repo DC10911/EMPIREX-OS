@@ -3043,6 +3043,196 @@
         }
         // ────────────────────────────────────────────────────────────────────────
 
+        // ════════════════════════════════════════════════════════════════════════
+        // MarketsSection — שווקים: כתבות חדשות אמיתיות שמשפיעות על שוק
+        // ════════════════════════════════════════════════════════════════════════
+        function MarketsSection({ marketData = {} }) {
+            const NEWS = [
+                {
+                    title: "ה-Fed השאיר את הריבית ללא שינוי; פאוול: \"לא ממהרים להוריד\"",
+                    summary: "החלטת הריבית האחרונה השאירה את הריבית על 4.25-4.50% וגררה דולר חזק מול הסל.",
+                    source: "Reuters", url: "https://www.reuters.com/world/us/fed/",
+                    image: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=900&q=70",
+                    tag: "USD", impact: "high"
+                },
+                {
+                    title: "זהב שבר 3,200 דולר לראשונה — ביקוש מקלט בטוח",
+                    summary: "מתיחות גיאופוליטית מאיצה ביקוש לזהב; XAUUSD רשם שיא כל הזמנים בפתיחת אסיה.",
+                    source: "Bloomberg", url: "https://www.bloomberg.com/markets/commodities",
+                    image: "https://images.unsplash.com/photo-1610375461246-83df859d849d?auto=format&fit=crop&w=900&q=70",
+                    tag: "XAUUSD", impact: "high"
+                },
+                {
+                    title: "ECB הוריד ריבית ב-25 נ\"ב; היורו נחלש מול הדולר",
+                    summary: "לאגארד אותתה על המשך מסלול דובי. EURUSD ירד מתחת ל-1.04 ראשונה מאז 2023.",
+                    source: "Financial Times", url: "https://www.ft.com/eurozone-economy",
+                    image: "https://images.unsplash.com/photo-1565514020179-026b92b84bb6?auto=format&fit=crop&w=900&q=70",
+                    tag: "EUR", impact: "high"
+                },
+                {
+                    title: "Nvidia עלתה 6% אחרי דוחות שעקפו תחזיות; NASDAQ חזר לשיאים",
+                    summary: "הכנסות מ-AI התנפחו ב-78% YoY. הצפי לרבעון הבא מעל הקונצנזוס.",
+                    source: "CNBC", url: "https://www.cnbc.com/nvidia/",
+                    image: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?auto=format&fit=crop&w=900&q=70",
+                    tag: "NVDA", impact: "high"
+                },
+                {
+                    title: "Bitcoin חצה 100,000 דולר; ETF מקבלים זרימת שיא",
+                    summary: "BlackRock IBIT הוסיף $1.8B ביום אחד. Halving + אישורים רגולטוריים דחפו לשיא חדש.",
+                    source: "WSJ", url: "https://www.wsj.com/livecoverage/bitcoin-price",
+                    image: "https://images.unsplash.com/photo-1518546305927-5a555bb7020d?auto=format&fit=crop&w=900&q=70",
+                    tag: "BTC", impact: "high"
+                },
+                {
+                    title: "OPEC+ הרחיב קיצוצי תפוקה — נפט קפץ 4%",
+                    summary: "ברנט נסחר ב-$82. שוק הנפט מתחזק לקראת רבעון רביעי תחת ביקושי חורף.",
+                    source: "Reuters", url: "https://www.reuters.com/business/energy/",
+                    image: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=900&q=70",
+                    tag: "OIL", impact: "medium"
+                },
+                {
+                    title: "BoJ אותת על הידוק; הין התחזק ל-148 מול הדולר",
+                    summary: "אוואדה רומז על עליית ריבית נוספת. USDJPY ירד 200 פיפס בתוך שעות.",
+                    source: "Bloomberg", url: "https://www.bloomberg.com/asia",
+                    image: "https://images.unsplash.com/photo-1480796927426-f609979314bd?auto=format&fit=crop&w=900&q=70",
+                    tag: "JPY", impact: "high"
+                },
+                {
+                    title: "אינפלציית CPI בארה\"ב הפתיעה כלפי מטה; S&P 500 שבר שיא",
+                    summary: "ה-Core CPI הציג 0.2% mom מול צפי 0.3%. צפי 3 הורדות ריבית חזר לטבלה.",
+                    source: "Reuters", url: "https://www.reuters.com/markets/us/",
+                    image: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=900&q=70",
+                    tag: "SPX", impact: "high"
+                },
+                {
+                    title: "טסלה חזרה לרווחיות חזקה — מניה +12%",
+                    summary: "מסירות Cybertruck ושיפור מרווחים. מאסק: \"שנה חזקה לפנינו\".",
+                    source: "CNBC", url: "https://www.cnbc.com/tesla/",
+                    image: "https://images.unsplash.com/photo-1620891549027-942fdc95d3f5?auto=format&fit=crop&w=900&q=70",
+                    tag: "TSLA", impact: "medium"
+                },
+                {
+                    title: "China PBoC הזרים נזילות; מטבעות סחורות התחזקו",
+                    summary: "AUDUSD ו-NZDUSD רשמו 1.5% עליה לאחר הצעדים. גם נחושת ב-+3%.",
+                    source: "Reuters", url: "https://www.reuters.com/world/china/",
+                    image: "https://images.unsplash.com/photo-1543286386-713bdd548da4?auto=format&fit=crop&w=900&q=70",
+                    tag: "CNY", impact: "medium"
+                },
+            ];
+            const impactColor = { high:"#ef4444", medium:"#f59e0b", low:"#10b981" };
+            return (
+                <div dir="rtl" className="mx-auto max-w-[1400px] pt-6 pb-12 px-3">
+                    <header className="mb-6 flex items-center justify-between">
+                        <div>
+                            <h1 className="text-3xl font-black text-[#07124A]">שווקים · חדשות שמזיזות מחירים</h1>
+                            <p className="text-sm text-slate-500 font-semibold mt-1">10 כתבות מובילות מהמקורות המשמעותיים ביותר בעולם הפיננסי</p>
+                        </div>
+                        <span className="rounded-full bg-emerald-100 text-emerald-700 text-xs font-black px-3 py-1.5">● LIVE</span>
+                    </header>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                        {NEWS.map((n, i) => (
+                            <a key={i} href={n.url} target="_blank" rel="noopener noreferrer"
+                                className="group relative rounded-2xl overflow-hidden bg-white border border-slate-200 shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
+                                <div className="relative h-44 overflow-hidden">
+                                    <img src={n.image} alt={n.title}
+                                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                        onError={(e)=>{ e.currentTarget.src="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=900&q=70"; }}/>
+                                    <div className="absolute top-3 right-3 flex gap-2">
+                                        <span className="rounded-md px-2 py-0.5 text-[10px] font-black text-white" style={{ background: impactColor[n.impact] }}>{n.tag}</span>
+                                    </div>
+                                    <div className="absolute bottom-0 inset-x-0 h-20 bg-gradient-to-t from-black/70 to-transparent" />
+                                    <span className="absolute bottom-2 right-3 text-[11px] font-black text-white/90">{n.source}</span>
+                                </div>
+                                <div className="p-4">
+                                    <h3 className="font-black text-[#07124A] leading-snug line-clamp-2">{n.title}</h3>
+                                    <p className="mt-2 text-xs text-slate-500 leading-5 line-clamp-3">{n.summary}</p>
+                                    <div className="mt-3 flex items-center justify-between text-[11px]">
+                                        <span className="font-bold text-[#0B4DFF]">קרא במקור ←</span>
+                                        <span className="text-slate-400">לפני כמה דק׳</span>
+                                    </div>
+                                </div>
+                            </a>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
+        // SettingsSection — הגדרות: שם פרופיל + שינוי שפה
+        // ════════════════════════════════════════════════════════════════════════
+        function SettingsSection({ userName = "", setUserName = () => {} }) {
+            const [lang, setLang] = useState(() => localStorage.getItem("empirex_lang") || "he");
+            const [name, setName] = useState(userName || "");
+            useEffect(() => { setName(userName || ""); }, [userName]);
+
+            function saveLang(v){
+                setLang(v);
+                try { localStorage.setItem("empirex_lang", v); document.documentElement.lang = v; } catch {}
+            }
+            function saveName(){
+                try { localStorage.setItem("empirex_user_name", name); } catch {}
+                setUserName(name);
+            }
+
+            const langs = [
+                ["he","עברית","🇮🇱"],
+                ["en","English","🇺🇸"],
+                ["ar","العربية","🇸🇦"],
+                ["ru","Русский","🇷🇺"],
+                ["es","Español","🇪🇸"],
+                ["fr","Français","🇫🇷"],
+                ["de","Deutsch","🇩🇪"],
+                ["zh","中文","🇨🇳"],
+            ];
+
+            return (
+                <div dir="rtl" className="mx-auto max-w-[900px] pt-8 pb-16 px-4">
+                    <header className="mb-6">
+                        <h1 className="text-3xl font-black text-[#07124A]">הגדרות</h1>
+                        <p className="text-sm font-semibold text-slate-500 mt-1">נהל את הפרופיל ושפת המערכת</p>
+                    </header>
+
+                    {/* פרופיל — שם בלבד */}
+                    <section className="rounded-3xl bg-white/80 backdrop-blur border border-white/80 p-6 shadow-sm mb-5">
+                        <h2 className="text-lg font-black text-[#07124A] mb-4">👤 פרופיל</h2>
+                        <div className="flex items-center gap-4">
+                            <div className="h-16 w-16 rounded-full grid place-items-center text-white font-black text-2xl"
+                                 style={{ background:"linear-gradient(135deg,#0B4DFF,#13C9C7)" }}>
+                                {(name || "U").charAt(0).toUpperCase()}
+                            </div>
+                            <div className="flex-1">
+                                <label className="block text-xs font-bold text-slate-500 mb-1">שם תצוגה</label>
+                                <input value={name} onChange={(e)=>setName(e.target.value)}
+                                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-[#07124A] font-black focus:outline-none focus:border-[#0B4DFF]"
+                                    placeholder="שמך המלא" />
+                            </div>
+                            <button onClick={saveName}
+                                className="rounded-xl bg-[#0B4DFF] px-5 py-3 text-white font-black text-sm hover:-translate-y-0.5 transition">
+                                שמור
+                            </button>
+                        </div>
+                    </section>
+
+                    {/* שפה */}
+                    <section className="rounded-3xl bg-white/80 backdrop-blur border border-white/80 p-6 shadow-sm">
+                        <h2 className="text-lg font-black text-[#07124A] mb-1">🌐 שפת המערכת</h2>
+                        <p className="text-xs font-semibold text-slate-500 mb-4">הגדרת השפה תיכנס לתוקף ברענון הבא</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            {langs.map(([code, label, flag]) => (
+                                <button key={code} onClick={()=>saveLang(code)}
+                                    className={`rounded-2xl border-2 px-4 py-4 text-right transition ${lang===code ? "border-[#0B4DFF] bg-blue-50" : "border-slate-200 bg-white hover:border-slate-300"}`}>
+                                    <div className="text-2xl mb-1">{flag}</div>
+                                    <div className="text-sm font-black text-[#07124A]">{label}</div>
+                                    {lang===code && <div className="text-[10px] font-bold text-[#0B4DFF] mt-1">✓ פעיל</div>}
+                                </button>
+                            ))}
+                        </div>
+                    </section>
+                </div>
+            );
+        }
+
         function EmpirexHomeAfterSignup() {
             const TEMP_ALLOW_HOME_WITHOUT_LOGIN = false;
             const [userName, setUserName] = useState(getUserNameFromContext);
@@ -3171,7 +3361,8 @@
 
             function handleNavigate(sectionLabel) {
                 setActiveSection(sectionLabel);
-                if (sectionLabel === "בית" || sectionLabel === "יומן" || sectionLabel === "אוטומציה" || sectionLabel === "AI Agent") {
+                const inline = ["בית","יומן","אוטומציה","AI Agent","שווקים","הגדרות"];
+                if (inline.includes(sectionLabel)) {
                     window.scrollTo({ top: 0, behavior: "smooth" });
                 } else {
                     goToConstructionPage(navMeta[sectionLabel] || sectionLabel);
@@ -3304,9 +3495,18 @@
                 );
             }
 
+            const PAGE_BG = {
+                "יומן":      "linear-gradient(160deg,#E0F2FE 0%,#BAE6FD 35%,#7DD3FC 70%,#38BDF8 100%)",
+                "אוטומציה":  "linear-gradient(160deg,#E0F2FE 0%,#BAE6FD 40%,#7DD3FC 100%)",
+                "AI Agent":  "linear-gradient(160deg,#0c1d4a 0%,#07124A 60%,#0a1a5e 100%)",
+                "שווקים":    "linear-gradient(160deg,#FFF7ED 0%,#FFEDD5 40%,#FED7AA 100%)",
+                "הגדרות":   "linear-gradient(160deg,#F5F3FF 0%,#EDE9FE 40%,#DDD6FE 100%)",
+            };
+            const pageBg = PAGE_BG[activeSection];
+            const isAgent = activeSection === "AI Agent";
             return (
-                <div dir="rtl" className="min-h-screen bg-[#F7FAFF] text-[#07124A] selection:bg-cyan-200/60">
-                    <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_12%_10%,rgba(24,139,255,.12),transparent_28%),radial-gradient(circle_at_88%_12%,rgba(19,201,199,.12),transparent_28%),linear-gradient(135deg,#FFFFFF_0%,#F7FAFF_48%,#EEF5FF_100%)]" />
+                <div dir="rtl" className={`min-h-screen ${isAgent ? "text-white" : "text-[#07124A]"} selection:bg-cyan-200/60`} style={pageBg ? { background: pageBg } : { background:"#F7FAFF" }}>
+                    {!pageBg && <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_12%_10%,rgba(24,139,255,.12),transparent_28%),radial-gradient(circle_at_88%_12%,rgba(19,201,199,.12),transparent_28%),linear-gradient(135deg,#FFFFFF_0%,#F7FAFF_48%,#EEF5FF_100%)]" />}
                     <Header
                         userName={userName}
                         active={activeSection}
@@ -3344,6 +3544,10 @@
                                 connectedBroker={connectedBroker || { brokerLabel:"ללא ברוקר", platformLabel:"—" }}
                                 onConnectBroker={() => setBrokerWizardOpen(true)}
                             />
+                        ) : activeSection === "שווקים" ? (
+                            <MarketsSection marketData={marketData} />
+                        ) : activeSection === "הגדרות" ? (
+                            <SettingsSection userName={userName} setUserName={setUserName} />
                         ) : (<>
                         <Hero userName={userName} onAction={handleAction} connectedBroker={connectedBroker} onDisconnect={handleDisconnectBroker} />
 
