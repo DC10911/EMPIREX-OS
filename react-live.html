@@ -38,6 +38,23 @@
       .border-slate-200, .border-slate-300, .border-gray-200, .border-gray-300 { border-color: rgba(18,215,209,0.15) !important }
       .divide-slate-200 > *, .divide-gray-200 > * { border-color: rgba(18,215,209,0.12) !important }
       input, select, textarea { background-color: rgba(2,3,10,0.55) !important; color: #e8f0ff !important; border-color: rgba(18,215,209,0.25) !important }
+      /* Kill the page's own white/blue solid+gradient backgrounds so 3D shows */
+      [class*="F7FAFF"], [class*="EEF5FF"], [class*="#FFFFFF"], [class*="from-white"], [class*="to-white"], [class*="from-cyan-50"], [class*="to-indigo-50"], [class*="from-slate-50"] {
+        background: transparent !important;
+      }
+      /* Big radial/linear gradient overlays inside hero */
+      [class*="radial-gradient"], [class*="linear-gradient"] {
+        background-image: none !important;
+        background: transparent !important;
+      }
+      /* Keep the deep-navy CTA section but tint */
+      [class*="#07124A"] { background-color: rgba(7,18,74,0.55) !important }
+      /* Slight darken layer so text always readable */
+      #root::before {
+        content:''; position:fixed; inset:0; z-index:-1;
+        background: linear-gradient(180deg, rgba(2,3,10,0.55), rgba(2,3,10,0.78));
+        pointer-events:none;
+      }
     </style>
     <script type="importmap">
     {"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
