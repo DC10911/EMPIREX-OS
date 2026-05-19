@@ -434,7 +434,7 @@ def send_email_code(recipient_email: str, code: str, full_name: str) -> tuple[bo
 
     # Preferred in production: HTTPS email API (avoids SMTP egress/port issues).
     if RESEND_API_KEY:
-        sender = "onboarding@resend.dev"
+        sender = RESEND_FROM or "onboarding@resend.dev"
         payload = {
             "from": sender,
             "to": [recipient_email],
