@@ -10,13 +10,34 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
-      html,body{background:#02030a !important}
+      html,body{background:#02030a !important;color-scheme:dark}
       #bg3d{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;background:radial-gradient(ellipse at 50% 30%, #061226 0%, #02030a 70%)}
       #root{position:relative;z-index:1}
-      /* tone down the stark white bg blocks so the 3D shows through */
-      .bg-slate-50, .bg-white { background-color: rgba(255,255,255,0.92) !important; backdrop-filter: blur(6px) }
-      .bg-slate-900, .bg-slate-950 { background-color: rgba(2,3,10,0.55) !important; backdrop-filter: blur(8px) }
-      section, header, footer { background-color: transparent !important }
+      /* Make page transparent so the 3D scene is visible */
+      body, .bg-slate-50, .bg-white, .bg-gray-50, .bg-gray-100 {
+        background-color: transparent !important;
+      }
+      .bg-slate-900, .bg-slate-950, .bg-gray-900, .bg-gray-950, .bg-black {
+        background-color: rgba(2,3,10,0.55) !important;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+      }
+      /* Cards: glassmorphic */
+      .rounded-2xl, .rounded-xl, .rounded-3xl, .shadow, .shadow-lg, .shadow-xl, .shadow-2xl {
+        background-color: rgba(6,18,38,0.55) !important;
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        border: 1px solid rgba(18,215,209,0.18) !important;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(18,215,209,0.08) inset !important;
+      }
+      section, header, footer, nav, main { background-color: transparent !important }
+      /* Force readable text on dark */
+      .text-slate-900, .text-slate-800, .text-gray-900, .text-gray-800, .text-black { color: #e8f0ff !important }
+      .text-slate-700, .text-slate-600, .text-gray-700, .text-gray-600 { color: #b8c5d6 !important }
+      .text-slate-500, .text-slate-400, .text-gray-500, .text-gray-400 { color: #8a9bb0 !important }
+      .border-slate-200, .border-slate-300, .border-gray-200, .border-gray-300 { border-color: rgba(18,215,209,0.15) !important }
+      .divide-slate-200 > *, .divide-gray-200 > * { border-color: rgba(18,215,209,0.12) !important }
+      input, select, textarea { background-color: rgba(2,3,10,0.55) !important; color: #e8f0ff !important; border-color: rgba(18,215,209,0.25) !important }
     </style>
     <script type="importmap">
     {"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
