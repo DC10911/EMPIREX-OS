@@ -431,7 +431,11 @@ def send_email_code(recipient_email: str, code: str, full_name: str) -> tuple[bo
         "אם לא ביקשת הרשמה, אפשר להתעלם מהמייל הזה."
     )
 
+<<<<<<< HEAD
     # Prefer HTTPS provider in production to avoid SMTP egress limitations.
+=======
+    # Preferred in production: HTTPS email API (avoids SMTP egress/port issues).
+>>>>>>> 8d6d07e31974b277bdcd71d3c6d5a9d11a79d912
     if RESEND_API_KEY:
         sender = RESEND_FROM or "onboarding@resend.dev"
         payload = {
@@ -440,17 +444,30 @@ def send_email_code(recipient_email: str, code: str, full_name: str) -> tuple[bo
             "subject": subject,
             "text": body,
         }
+<<<<<<< HEAD
         request = Request(
             "https://api.resend.com/emails",
             data=json.dumps(payload).encode("utf-8"),
             method="POST",
+=======
+        req = Request(
+            "https://api.resend.com/emails",
+            data=json.dumps(payload).encode("utf-8"),
+>>>>>>> 8d6d07e31974b277bdcd71d3c6d5a9d11a79d912
             headers={
                 "Authorization": f"Bearer {RESEND_API_KEY}",
                 "Content-Type": "application/json",
             },
+<<<<<<< HEAD
         )
         try:
             with urlopen(request, timeout=20) as response:  # noqa: S310
+=======
+            method="POST",
+        )
+        try:
+            with urlopen(req, timeout=20) as response:
+>>>>>>> 8d6d07e31974b277bdcd71d3c6d5a9d11a79d912
                 if 200 <= response.status < 300:
                     return True, "Verification email sent"
                 return False, f"Resend send failed: HTTP {response.status}"
