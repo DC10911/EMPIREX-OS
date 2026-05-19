@@ -3351,7 +3351,13 @@
                     <main className="px-5 pb-10">
                         {activeSection === "יומן" ? (
                             <JournalSection
-                                connectedBroker={connectedBroker}
+                                connectedBroker={connectedBroker || {
+                                    brokerId:"demo", brokerLabel:"Demo Broker", platformId:"demo", platformLabel:"Simulator",
+                                    accountName:"Demo Account", currency:"USD",
+                                    balance:10000, equity:10142.55, dailyPnl:142.55, dailyTrades:6, dailyWins:4,
+                                    openPositions:2, totalTrades:87, leverage:100, simulated:true,
+                                    aiSummary:"מצב הדגמה — חבר ברוקר אמיתי כדי לראות את הנתונים שלך."
+                                }}
                                 isRefreshing={brokerDataLoading}
                                 onRefresh={refreshBrokerData}
                                 onConnectBroker={() => setBrokerWizardOpen(true)}
@@ -3360,7 +3366,11 @@
                             />
                         ) : activeSection === "אוטומציה" ? (
                             <BotSection
-                                connectedBroker={connectedBroker}
+                                connectedBroker={connectedBroker || {
+                                    brokerId:"demo", brokerLabel:"Demo Broker", platformId:"demo", platformLabel:"Simulator",
+                                    accountName:"Demo Account", currency:"USD",
+                                    balance:10000, equity:10142.55, simulated:true
+                                }}
                                 onConnectBroker={() => setBrokerWizardOpen(true)}
                                 openTrades={botOpenTrades}
                                 setOpenTrades={setBotOpenTrades}
@@ -3369,7 +3379,10 @@
                             />
                         ) : activeSection === "AI Agent" ? (
                             <AgentSection
-                                connectedBroker={connectedBroker}
+                                connectedBroker={connectedBroker || {
+                                    brokerId:"demo", brokerLabel:"Demo Broker", platformId:"demo", platformLabel:"Simulator",
+                                    simulated:true
+                                }}
                                 onConnectBroker={() => setBrokerWizardOpen(true)}
                             />
                         ) : (<>
