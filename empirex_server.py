@@ -447,6 +447,8 @@ def send_email_code(recipient_email: str, code: str, full_name: str) -> tuple[bo
             headers={
                 "Authorization": f"Bearer {RESEND_API_KEY}",
                 "Content-Type": "application/json",
+                "User-Agent": "EmpirexOS/1.0 (+https://empirexos.com)",
+                "Accept": "application/json",
             },
             method="POST",
         )
