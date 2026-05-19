@@ -388,9 +388,12 @@
                                 <Icon name="bell" className="h-5 w-5" />
                                 <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-[#0B4DFF] ring-2 ring-white" />
                             </button>
-                            <button onClick={() => onOpenPlaceholder("פרופיל משתמש")}
-                                className="flex h-12 items-center gap-3 rounded-2xl border border-slate-200 bg-white pr-2 pl-4 shadow-sm" dir="rtl">
-                                <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-[#07124A] to-[#15D7D1] text-xs font-black text-white">ד</div>
+                            <button onClick={() => onNavigate("הגדרות")}
+                                className="flex h-12 items-center gap-3 rounded-2xl border border-slate-200 bg-white pr-2 pl-4 shadow-sm hover:border-[#0B4DFF]/40 transition" dir="rtl"
+                                title="פתח הגדרות">
+                                <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-[#07124A] to-[#15D7D1] text-xs font-black text-white">
+                                    {(userName || "U").charAt(0).toUpperCase()}
+                                </div>
                                 <div className="hidden text-right md:block">
                                     <p className="text-sm font-black text-[#07124A]">{userName}</p>
                                     <p className="text-xs font-semibold text-slate-400">Trader Pro</p>
@@ -3159,76 +3162,338 @@
         }
 
         // ════════════════════════════════════════════════════════════════════════
-        // SettingsSection — הגדרות: שם פרופיל + שינוי שפה
+        // SettingsSection — הגדרות מלאות: פרופיל / שפה / התראות / אבטחה / מראה / חשבון / חיוב / תמיכה
         // ════════════════════════════════════════════════════════════════════════
         function SettingsSection({ userName = "", setUserName = () => {} }) {
+            const [tab, setTab] = useState("profile");
             const [lang, setLang] = useState(() => localStorage.getItem("empirex_lang") || "he");
             const [name, setName] = useState(userName || "");
+            const [email, setEmail] = useState(() => localStorage.getItem("empirex_user_email") || "");
+            const [phone, setPhone] = useState(() => localStorage.getItem("empirex_user_phone") || "");
+            const [country, setCountry] = useState(() => localStorage.getItem("empirex_country") || "IL");
+            const [timezone, setTimezone] = useState(() => localStorage.getItem("empirex_tz") || "Asia/Jerusalem");
+            const [currency, setCurrency] = useState(() => localStorage.getItem("empirex_currency") || "USD");
+            const [theme, setTheme] = useState(() => localStorage.getItem("empirex_theme") || "auto");
+            const [notifs, setNotifs] = useState(() => {
+                try { return JSON.parse(localStorage.getItem("empirex_notifs")) || { email:true, push:true, sms:false, trades:true, news:true, ai:true, marketing:false }; }
+                catch { return { email:true, push:true, sms:false, trades:true, news:true, ai:true, marketing:false }; }
+            });
+            const [saveMsg, setSaveMsg] = useState("");
+
             useEffect(() => { setName(userName || ""); }, [userName]);
 
+            function flash(msg){ setSaveMsg(msg); setTimeout(()=>setSaveMsg(""), 2500); }
             function saveLang(v){
                 setLang(v);
                 try { localStorage.setItem("empirex_lang", v); document.documentElement.lang = v; } catch {}
+                flash("השפה נשמרה ✓");
             }
-            function saveName(){
-                try { localStorage.setItem("empirex_user_name", name); } catch {}
+            function saveProfile(){
+                try {
+                    localStorage.setItem("empirex_user_name", name);
+                    localStorage.setItem("empirex_user_email", email);
+                    localStorage.setItem("empirex_user_phone", phone);
+                    localStorage.setItem("empirex_country", country);
+                    localStorage.setItem("empirex_tz", timezone);
+                    localStorage.setItem("empirex_currency", currency);
+                } catch {}
                 setUserName(name);
+                flash("הפרופיל נשמר ✓");
+            }
+            function saveNotifs(next){
+                setNotifs(next);
+                try { localStorage.setItem("empirex_notifs", JSON.stringify(next)); } catch {}
+                flash("העדפות ההתראות נשמרו ✓");
+            }
+            function saveTheme(v){
+                setTheme(v);
+                try { localStorage.setItem("empirex_theme", v); } catch {}
+                flash("ערכת הנושא נשמרה ✓");
+            }
+            function logout(){
+                try {
+                    localStorage.removeItem("empirex_session_token");
+                    localStorage.removeItem("empirex_user_name");
+                    localStorage.removeItem("empirex_user_email");
+                } catch {}
+                window.location.replace("/");
             }
 
+            // 35 שפות מובילות בעולם
             const langs = [
-                ["he","עברית","🇮🇱"],
-                ["en","English","🇺🇸"],
-                ["ar","العربية","🇸🇦"],
-                ["ru","Русский","🇷🇺"],
-                ["es","Español","🇪🇸"],
-                ["fr","Français","🇫🇷"],
-                ["de","Deutsch","🇩🇪"],
-                ["zh","中文","🇨🇳"],
+                ["he","עברית","🇮🇱"],            ["en","English","🇺🇸"],
+                ["ar","العربية","🇸🇦"],           ["ru","Русский","🇷🇺"],
+                ["es","Español","🇪🇸"],           ["fr","Français","🇫🇷"],
+                ["de","Deutsch","🇩🇪"],           ["it","Italiano","🇮🇹"],
+                ["pt","Português","🇵🇹"],         ["nl","Nederlands","🇳🇱"],
+                ["pl","Polski","🇵🇱"],            ["sv","Svenska","🇸🇪"],
+                ["no","Norsk","🇳🇴"],             ["da","Dansk","🇩🇰"],
+                ["fi","Suomi","🇫🇮"],             ["cs","Čeština","🇨🇿"],
+                ["el","Ελληνικά","🇬🇷"],          ["ro","Română","🇷🇴"],
+                ["hu","Magyar","🇭🇺"],            ["tr","Türkçe","🇹🇷"],
+                ["uk","Українська","🇺🇦"],        ["zh","中文 (简体)","🇨🇳"],
+                ["zh-TW","中文 (繁體)","🇹🇼"],     ["ja","日本語","🇯🇵"],
+                ["ko","한국어","🇰🇷"],            ["hi","हिन्दी","🇮🇳"],
+                ["bn","বাংলা","🇧🇩"],            ["ur","اردو","🇵🇰"],
+                ["fa","فارسی","🇮🇷"],            ["th","ไทย","🇹🇭"],
+                ["vi","Tiếng Việt","🇻🇳"],       ["id","Bahasa Indonesia","🇮🇩"],
+                ["ms","Bahasa Melayu","🇲🇾"],    ["tl","Tagalog","🇵🇭"],
+                ["sw","Kiswahili","🇰🇪"],
+            ];
+            const currencies = [["USD","דולר אמריקאי","$"],["EUR","אירו","€"],["GBP","פאונד בריטי","£"],["ILS","שקל חדש","₪"],["JPY","ין יפני","¥"],["CHF","פרנק שוויצרי","Fr"],["AUD","דולר אוסטרלי","A$"],["CAD","דולר קנדי","C$"],["CNY","יואן סיני","¥"],["BTC","ביטקוין","₿"]];
+            const timezones = ["Asia/Jerusalem","Europe/London","Europe/Berlin","Europe/Paris","Europe/Moscow","America/New_York","America/Chicago","America/Los_Angeles","America/Sao_Paulo","Asia/Tokyo","Asia/Shanghai","Asia/Singapore","Asia/Dubai","Australia/Sydney","UTC"];
+            const countries = [["IL","ישראל"],["US","ארצות הברית"],["GB","בריטניה"],["DE","גרמניה"],["FR","צרפת"],["RU","רוסיה"],["JP","יפן"],["CN","סין"],["CA","קנדה"],["AU","אוסטרליה"],["BR","ברזיל"],["IN","הודו"],["AE","איחוד האמירויות"]];
+
+            const tabs = [
+                ["profile","👤 פרופיל"],
+                ["language","🌐 שפה"],
+                ["notifications","🔔 התראות"],
+                ["appearance","🎨 מראה"],
+                ["security","🔒 אבטחה"],
+                ["account","⚙️ חשבון"],
+                ["billing","💳 חיוב ומנוי"],
+                ["support","💬 תמיכה"],
             ];
 
+            function Toggle({ on, onChange, label, sub }) {
+                return (
+                    <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4">
+                        <button onClick={()=>onChange(!on)}
+                            className={`relative h-7 w-12 rounded-full transition ${on ? "bg-[#0B4DFF]" : "bg-slate-300"}`}>
+                            <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition ${on ? "left-0.5" : "right-0.5"}`} />
+                        </button>
+                        <div className="text-right">
+                            <div className="text-sm font-black text-[#07124A]">{label}</div>
+                            {sub && <div className="text-[11px] text-slate-500 font-semibold mt-0.5">{sub}</div>}
+                        </div>
+                    </div>
+                );
+            }
+
             return (
-                <div dir="rtl" className="mx-auto max-w-[900px] pt-8 pb-16 px-4">
-                    <header className="mb-6">
-                        <h1 className="text-3xl font-black text-[#07124A]">הגדרות</h1>
-                        <p className="text-sm font-semibold text-slate-500 mt-1">נהל את הפרופיל ושפת המערכת</p>
+                <div dir="rtl" className="mx-auto max-w-[1200px] pt-8 pb-16 px-4">
+                    <header className="mb-6 flex items-center justify-between">
+                        <div>
+                            <h1 className="text-3xl font-black text-[#07124A]">הגדרות</h1>
+                            <p className="text-sm font-semibold text-slate-500 mt-1">נהל את החשבון, השפה, ההתראות והאבטחה שלך</p>
+                        </div>
+                        {saveMsg && <span className="rounded-full bg-emerald-100 text-emerald-700 text-xs font-black px-4 py-2">{saveMsg}</span>}
                     </header>
 
-                    {/* פרופיל — שם בלבד */}
-                    <section className="rounded-3xl bg-white/80 backdrop-blur border border-white/80 p-6 shadow-sm mb-5">
-                        <h2 className="text-lg font-black text-[#07124A] mb-4">👤 פרופיל</h2>
-                        <div className="flex items-center gap-4">
-                            <div className="h-16 w-16 rounded-full grid place-items-center text-white font-black text-2xl"
-                                 style={{ background:"linear-gradient(135deg,#0B4DFF,#13C9C7)" }}>
-                                {(name || "U").charAt(0).toUpperCase()}
-                            </div>
-                            <div className="flex-1">
-                                <label className="block text-xs font-bold text-slate-500 mb-1">שם תצוגה</label>
-                                <input value={name} onChange={(e)=>setName(e.target.value)}
-                                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-[#07124A] font-black focus:outline-none focus:border-[#0B4DFF]"
-                                    placeholder="שמך המלא" />
-                            </div>
-                            <button onClick={saveName}
-                                className="rounded-xl bg-[#0B4DFF] px-5 py-3 text-white font-black text-sm hover:-translate-y-0.5 transition">
-                                שמור
-                            </button>
-                        </div>
-                    </section>
-
-                    {/* שפה */}
-                    <section className="rounded-3xl bg-white/80 backdrop-blur border border-white/80 p-6 shadow-sm">
-                        <h2 className="text-lg font-black text-[#07124A] mb-1">🌐 שפת המערכת</h2>
-                        <p className="text-xs font-semibold text-slate-500 mb-4">הגדרת השפה תיכנס לתוקף ברענון הבא</p>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                            {langs.map(([code, label, flag]) => (
-                                <button key={code} onClick={()=>saveLang(code)}
-                                    className={`rounded-2xl border-2 px-4 py-4 text-right transition ${lang===code ? "border-[#0B4DFF] bg-blue-50" : "border-slate-200 bg-white hover:border-slate-300"}`}>
-                                    <div className="text-2xl mb-1">{flag}</div>
-                                    <div className="text-sm font-black text-[#07124A]">{label}</div>
-                                    {lang===code && <div className="text-[10px] font-bold text-[#0B4DFF] mt-1">✓ פעיל</div>}
+                    <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-5">
+                        {/* Sidebar tabs */}
+                        <aside className="rounded-3xl bg-white/80 backdrop-blur border border-white/80 p-3 shadow-sm h-fit sticky top-24">
+                            <nav className="flex flex-col gap-1">
+                                {tabs.map(([k, label]) => (
+                                    <button key={k} onClick={()=>setTab(k)}
+                                        className={`text-right rounded-xl px-4 py-3 text-sm font-black transition ${tab===k ? "bg-[#0B4DFF] text-white shadow" : "text-[#07124A] hover:bg-slate-100"}`}>
+                                        {label}
+                                    </button>
+                                ))}
+                                <button onClick={logout}
+                                    className="mt-3 text-right rounded-xl px-4 py-3 text-sm font-black text-red-600 hover:bg-red-50">
+                                    🚪 התנתק
                                 </button>
-                            ))}
-                        </div>
-                    </section>
+                            </nav>
+                        </aside>
+
+                        {/* Content */}
+                        <section className="rounded-3xl bg-white/80 backdrop-blur border border-white/80 p-6 shadow-sm">
+                            {tab === "profile" && (
+                                <div>
+                                    <h2 className="text-xl font-black text-[#07124A] mb-5">👤 פרטי פרופיל</h2>
+                                    <div className="flex items-center gap-4 mb-6">
+                                        <div className="h-20 w-20 rounded-full grid place-items-center text-white font-black text-3xl"
+                                             style={{ background:"linear-gradient(135deg,#0B4DFF,#13C9C7)" }}>
+                                            {(name || "U").charAt(0).toUpperCase()}
+                                        </div>
+                                        <div>
+                                            <div className="font-black text-[#07124A] text-lg">{name || "משתמש EMPIREX"}</div>
+                                            <div className="text-sm text-slate-500 font-semibold">Trader Pro · חבר מאז 2026</div>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <Field label="שם תצוגה" value={name} onChange={setName} placeholder="שמך המלא" />
+                                        <Field label="אימייל" value={email} onChange={setEmail} type="email" placeholder="you@example.com" />
+                                        <Field label="טלפון" value={phone} onChange={setPhone} placeholder="+972 50-000-0000" />
+                                        <Select label="מדינה" value={country} onChange={setCountry}
+                                                options={countries.map(([c,n])=>[c,n])} />
+                                        <Select label="אזור זמן" value={timezone} onChange={setTimezone}
+                                                options={timezones.map(t=>[t,t])} />
+                                        <Select label="מטבע ברירת מחדל" value={currency} onChange={setCurrency}
+                                                options={currencies.map(([c,n,sym])=>[c,`${sym} ${n}`])} />
+                                    </div>
+                                    <div className="mt-6 flex justify-end">
+                                        <button onClick={saveProfile}
+                                            className="rounded-xl bg-[#0B4DFF] px-6 py-3 text-white font-black text-sm hover:-translate-y-0.5 transition">
+                                            שמור שינויים
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {tab === "language" && (
+                                <div>
+                                    <h2 className="text-xl font-black text-[#07124A] mb-1">🌐 שפת המערכת</h2>
+                                    <p className="text-sm font-semibold text-slate-500 mb-5">{langs.length} שפות זמינות · הבחירה נשמרת מיד</p>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                                        {langs.map(([code, label, flag]) => (
+                                            <button key={code} onClick={()=>saveLang(code)}
+                                                className={`rounded-2xl border-2 px-4 py-4 text-right transition ${lang===code ? "border-[#0B4DFF] bg-blue-50 shadow" : "border-slate-200 bg-white hover:border-slate-300"}`}>
+                                                <div className="text-2xl mb-1">{flag}</div>
+                                                <div className="text-sm font-black text-[#07124A] leading-tight">{label}</div>
+                                                {lang===code && <div className="text-[10px] font-bold text-[#0B4DFF] mt-1">✓ פעיל</div>}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {tab === "notifications" && (
+                                <div>
+                                    <h2 className="text-xl font-black text-[#07124A] mb-1">🔔 העדפות התראות</h2>
+                                    <p className="text-sm font-semibold text-slate-500 mb-5">בחר אילו התראות תרצה לקבל</p>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        <Toggle on={notifs.email}     onChange={(v)=>saveNotifs({...notifs, email:v})}     label="התראות במייל"        sub="עדכוני חשבון ומסחר" />
+                                        <Toggle on={notifs.push}      onChange={(v)=>saveNotifs({...notifs, push:v})}      label="התראות Push"          sub="דחיפה לדפדפן" />
+                                        <Toggle on={notifs.sms}       onChange={(v)=>saveNotifs({...notifs, sms:v})}       label="SMS"                  sub="התראות קריטיות בלבד" />
+                                        <Toggle on={notifs.trades}    onChange={(v)=>saveNotifs({...notifs, trades:v})}    label="עסקאות בוט"           sub="פתיחה/סגירה של עסקאות" />
+                                        <Toggle on={notifs.news}      onChange={(v)=>saveNotifs({...notifs, news:v})}      label="חדשות שוק"            sub="כתבות שמשפיעות על תיק" />
+                                        <Toggle on={notifs.ai}        onChange={(v)=>saveNotifs({...notifs, ai:v})}        label="AI Agent התראות"      sub="המלצות וניתוחי הסוכן" />
+                                        <Toggle on={notifs.marketing} onChange={(v)=>saveNotifs({...notifs, marketing:v})} label="עדכוני מוצר ושיווק"    sub="פיצ'רים חדשים ומבצעים" />
+                                    </div>
+                                </div>
+                            )}
+
+                            {tab === "appearance" && (
+                                <div>
+                                    <h2 className="text-xl font-black text-[#07124A] mb-1">🎨 מראה</h2>
+                                    <p className="text-sm font-semibold text-slate-500 mb-5">ערכת נושא ומראה ויזואלי</p>
+                                    <div className="grid grid-cols-3 gap-3">
+                                        {[["auto","🖥️ אוטומטי","עוקב אחר המערכת"],["light","☀️ בהיר","תמיד בהיר"],["dark","🌙 כהה","תמיד כהה"]].map(([k,t,sub])=>(
+                                            <button key={k} onClick={()=>saveTheme(k)}
+                                                className={`rounded-2xl border-2 p-5 text-right transition ${theme===k ? "border-[#0B4DFF] bg-blue-50 shadow" : "border-slate-200 bg-white hover:border-slate-300"}`}>
+                                                <div className="text-lg font-black text-[#07124A]">{t}</div>
+                                                <div className="text-xs text-slate-500 font-semibold mt-1">{sub}</div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {tab === "security" && (
+                                <div>
+                                    <h2 className="text-xl font-black text-[#07124A] mb-1">🔒 אבטחה</h2>
+                                    <p className="text-sm font-semibold text-slate-500 mb-5">הגנה על החשבון שלך</p>
+                                    <div className="space-y-3">
+                                        <SecurityRow title="אימות דו-שלבי (2FA)" sub="הוסף שכבת אבטחה נוספת" cta="הפעל" />
+                                        <SecurityRow title="שינוי סיסמה" sub="עדכן את סיסמת ההתחברות" cta="שנה" />
+                                        <SecurityRow title="סשנים פעילים" sub="צפה במכשירים שמחוברים לחשבון" cta="צפה" />
+                                        <SecurityRow title="היסטוריית כניסות" sub="50 הכניסות האחרונות" cta="פתח" />
+                                        <SecurityRow title="מפתחות API" sub="ניהול מפתחות גישה לבוט" cta="נהל" />
+                                    </div>
+                                </div>
+                            )}
+
+                            {tab === "account" && (
+                                <div>
+                                    <h2 className="text-xl font-black text-[#07124A] mb-1">⚙️ ניהול חשבון</h2>
+                                    <p className="text-sm font-semibold text-slate-500 mb-5">פעולות מתקדמות על החשבון</p>
+                                    <div className="space-y-3">
+                                        <SecurityRow title="ייצוא נתונים" sub="הורד את כל הנתונים שלך כ-ZIP" cta="ייצא" />
+                                        <SecurityRow title="חיבור ברוקרים" sub="נהל את הברוקרים המחוברים" cta="פתח" />
+                                        <SecurityRow title="מחיקת חשבון" sub="פעולה בלתי הפיכה" cta="מחק" danger />
+                                    </div>
+                                </div>
+                            )}
+
+                            {tab === "billing" && (
+                                <div>
+                                    <h2 className="text-xl font-black text-[#07124A] mb-1">💳 חיוב ומנוי</h2>
+                                    <p className="text-sm font-semibold text-slate-500 mb-5">המנוי שלך ופרטי תשלום</p>
+                                    <div className="rounded-2xl border-2 border-[#0B4DFF] bg-gradient-to-br from-blue-50 to-cyan-50 p-6 mb-4">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <div className="text-2xl font-black text-[#07124A]">EMPIREX Pro</div>
+                                                <div className="text-sm font-semibold text-slate-600 mt-1">חיוב הבא: 19 ביוני 2026 · $49/חודש</div>
+                                            </div>
+                                            <span className="rounded-full bg-emerald-500 text-white text-xs font-black px-3 py-1.5">פעיל</span>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <SecurityRow title="שדרג ל-Enterprise" sub="פיצ'רים מתקדמים + תמיכת VIP" cta="שדרג" />
+                                        <SecurityRow title="עדכן כרטיס אשראי" sub="•••• 4242 — תוקף 12/27" cta="עדכן" />
+                                        <SecurityRow title="חשבוניות" sub="הורד את כל החשבוניות הקודמות" cta="פתח" />
+                                        <SecurityRow title="ביטול מנוי" sub="המנוי יישאר פעיל עד 19/06/2026" cta="בטל" danger />
+                                    </div>
+                                </div>
+                            )}
+
+                            {tab === "support" && (
+                                <div>
+                                    <h2 className="text-xl font-black text-[#07124A] mb-1">💬 תמיכה</h2>
+                                    <p className="text-sm font-semibold text-slate-500 mb-5">צריך עזרה? אנחנו כאן</p>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <a href="mailto:support@empirexos.com" className="rounded-2xl border-2 border-slate-200 bg-white p-5 hover:border-[#0B4DFF] transition">
+                                            <div className="text-2xl mb-2">📧</div>
+                                            <div className="font-black text-[#07124A]">מייל לתמיכה</div>
+                                            <div className="text-xs text-slate-500 font-semibold mt-1">support@empirexos.com</div>
+                                        </a>
+                                        <a href="#" className="rounded-2xl border-2 border-slate-200 bg-white p-5 hover:border-[#0B4DFF] transition">
+                                            <div className="text-2xl mb-2">💬</div>
+                                            <div className="font-black text-[#07124A]">צ'אט חי</div>
+                                            <div className="text-xs text-slate-500 font-semibold mt-1">זמין 24/7</div>
+                                        </a>
+                                        <a href="#" className="rounded-2xl border-2 border-slate-200 bg-white p-5 hover:border-[#0B4DFF] transition">
+                                            <div className="text-2xl mb-2">📚</div>
+                                            <div className="font-black text-[#07124A]">מאגר ידע</div>
+                                            <div className="text-xs text-slate-500 font-semibold mt-1">מדריכים ושאלות נפוצות</div>
+                                        </a>
+                                        <a href="#" className="rounded-2xl border-2 border-slate-200 bg-white p-5 hover:border-[#0B4DFF] transition">
+                                            <div className="text-2xl mb-2">🐛</div>
+                                            <div className="font-black text-[#07124A]">דווח על באג</div>
+                                            <div className="text-xs text-slate-500 font-semibold mt-1">עזור לנו לשפר</div>
+                                        </a>
+                                    </div>
+                                </div>
+                            )}
+                        </section>
+                    </div>
+                </div>
+            );
+        }
+
+        function Field({ label, value, onChange, type="text", placeholder="" }) {
+            return (
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">{label}</label>
+                    <input type={type} value={value} onChange={(e)=>onChange(e.target.value)}
+                        placeholder={placeholder}
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-[#07124A] font-bold focus:outline-none focus:border-[#0B4DFF]" />
+                </div>
+            );
+        }
+        function Select({ label, value, onChange, options }) {
+            return (
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">{label}</label>
+                    <select value={value} onChange={(e)=>onChange(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-[#07124A] font-bold bg-white focus:outline-none focus:border-[#0B4DFF]">
+                        {options.map(([v,l])=><option key={v} value={v}>{l}</option>)}
+                    </select>
+                </div>
+            );
+        }
+        function SecurityRow({ title, sub, cta, danger=false }) {
+            return (
+                <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4">
+                    <button className={`rounded-xl px-5 py-2 text-sm font-black transition ${danger ? "bg-red-50 text-red-700 hover:bg-red-100" : "bg-[#0B4DFF] text-white hover:-translate-y-0.5"}`}>
+                        {cta}
+                    </button>
+                    <div className="text-right">
+                        <div className="text-sm font-black text-[#07124A]">{title}</div>
+                        {sub && <div className="text-[11px] text-slate-500 font-semibold mt-0.5">{sub}</div>}
+                    </div>
                 </div>
             );
         }
@@ -3495,17 +3760,26 @@
                 );
             }
 
+            const DARK_BG = "radial-gradient(circle at 20% 30%, rgba(59,130,246,.22), transparent 32%), radial-gradient(circle at 82% 18%, rgba(34,211,238,.15), transparent 28%), radial-gradient(circle at 50% 100%, rgba(124,58,237,.20), transparent 36%), linear-gradient(180deg, #050a24 0%, #06113a 50%, #020617 100%)";
             const PAGE_BG = {
-                "יומן":      "linear-gradient(160deg,#E0F2FE 0%,#BAE6FD 35%,#7DD3FC 70%,#38BDF8 100%)",
+                "יומן":      DARK_BG,
                 "אוטומציה":  "linear-gradient(160deg,#E0F2FE 0%,#BAE6FD 40%,#7DD3FC 100%)",
-                "AI Agent":  "linear-gradient(160deg,#0c1d4a 0%,#07124A 60%,#0a1a5e 100%)",
+                "AI Agent":  DARK_BG,
                 "שווקים":    "linear-gradient(160deg,#FFF7ED 0%,#FFEDD5 40%,#FED7AA 100%)",
                 "הגדרות":   "linear-gradient(160deg,#F5F3FF 0%,#EDE9FE 40%,#DDD6FE 100%)",
             };
             const pageBg = PAGE_BG[activeSection];
-            const isAgent = activeSection === "AI Agent";
+            const isDarkPage = activeSection === "AI Agent" || activeSection === "יומן";
             return (
-                <div dir="rtl" className={`min-h-screen ${isAgent ? "text-white" : "text-[#07124A]"} selection:bg-cyan-200/60`} style={pageBg ? { background: pageBg } : { background:"#F7FAFF" }}>
+                <div dir="rtl" className={`min-h-screen ${isDarkPage ? "text-white" : "text-[#07124A]"} selection:bg-cyan-200/60 relative`} style={pageBg ? { background: pageBg } : { background:"#F7FAFF" }}>
+                    {/* Grid overlay for dark pages (Journal + Agent) — matches the design spec */}
+                    {isDarkPage && (
+                        <div className="pointer-events-none fixed inset-0 z-0"
+                             style={{
+                                 backgroundImage: "linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px)",
+                                 backgroundSize: "64px 64px",
+                             }} />
+                    )}
                     {!pageBg && <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_12%_10%,rgba(24,139,255,.12),transparent_28%),radial-gradient(circle_at_88%_12%,rgba(19,201,199,.12),transparent_28%),linear-gradient(135deg,#FFFFFF_0%,#F7FAFF_48%,#EEF5FF_100%)]" />}
                     <Header
                         userName={userName}
@@ -3520,7 +3794,7 @@
                         onOpenPlaceholder={handleAction}
                     />
 
-                    <main className="px-5 pb-10">
+                    <main className="px-5 pb-10 relative z-10">
                         {activeSection === "יומן" ? (
                             <JournalSection
                                 connectedBroker={connectedBroker || { brokerLabel:"ללא ברוקר", platformLabel:"—", currency:"USD" }}
