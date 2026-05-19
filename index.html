@@ -1,15 +1,730 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="he" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="0; url=./react-live.html">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Redirecting...</title>
-    <script>
-        window.location.replace('./react-live.html');
-    </script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="theme-color" content="#0B1426" />
+<title>EMPIREX OS — מערכת אחת לכל מה שסוחר רציני צריך</title>
+<meta name="description" content="EMPIREX OS — פלטפורמת מסחר אלגוריתמי, ניהול תיקים, ניהול סיכונים, יומן מסחר ו-AI Agent במערכת אחת." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --bg:#070b18;
+  --bg-2:#0b1426;
+  --panel:#0f1a30;
+  --panel-2:#13213b;
+  --border:#1c2c4d;
+  --border-2:#243a63;
+  --ink:#e8edf7;
+  --ink-2:#a9b6cf;
+  --ink-3:#6e7d9c;
+  --cyan:#00d4ff;
+  --cyan-2:#00a8cc;
+  --blue:#3b82f6;
+  --emer:#10b981;
+  --amber:#f59e0b;
+  --rose:#ef4444;
+  --grad:linear-gradient(135deg,#00d4ff 0%,#3b82f6 60%,#7c3aed 100%);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font-family:'Heebo',system-ui,sans-serif;font-weight:400;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;line-height:1.55}
+a{color:inherit;text-decoration:none}
+img,svg{display:block;max-width:100%}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+input,select,textarea{font:inherit;color:inherit}
+::selection{background:rgba(0,212,255,.35);color:#fff}
+.wrap{max-width:1280px;margin:0 auto;padding:0 24px}
+
+/* Animated background */
+.bgfx{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.bgfx::before{content:"";position:absolute;inset:-20%;background:
+  radial-gradient(60% 50% at 20% 20%, rgba(0,212,255,.18), transparent 70%),
+  radial-gradient(50% 40% at 85% 35%, rgba(124,58,237,.18), transparent 75%),
+  radial-gradient(40% 30% at 50% 90%, rgba(59,130,246,.14), transparent 70%),
+  linear-gradient(180deg,#070b18,#0a1124 60%,#070b18);
+  filter:saturate(115%)}
+.bgfx::after{content:"";position:absolute;inset:0;background-image:
+  linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+  background-size:48px 48px;mask:radial-gradient(60% 50% at 50% 30%,#000 40%,transparent 80%)}
+
+/* NAV */
+.nav{position:sticky;top:0;z-index:50;backdrop-filter:blur(14px);background:rgba(7,11,24,.72);border-bottom:1px solid rgba(255,255,255,.06)}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;height:72px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.5px}
+.brand-mark{width:34px;height:34px;border-radius:9px;background:var(--grad);box-shadow:0 6px 18px rgba(0,212,255,.35);position:relative;display:grid;place-items:center;color:#001018;font-weight:900;font-family:'Inter',sans-serif}
+.brand-mark::after{content:"";position:absolute;inset:1px;border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,.18),transparent 40%)}
+.brand-name{font-family:'Inter',sans-serif;font-weight:800;font-size:18px}
+.brand-name b{color:var(--cyan)}
+.nav-links{display:flex;align-items:center;gap:26px}
+.nav-links a{color:var(--ink-2);font-weight:500;font-size:14.5px;transition:color .2s}
+.nav-links a:hover{color:#fff}
+.nav-cta{display:flex;gap:10px;align-items:center}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 18px;border-radius:10px;font-weight:600;font-size:14.5px;transition:transform .15s,box-shadow .2s,background .2s;white-space:nowrap}
+.btn-primary{background:var(--cyan);color:#001018;box-shadow:0 8px 22px rgba(0,212,255,.32)}
+.btn-primary:hover{background:#15e0ff;transform:translateY(-1px)}
+.btn-ghost{background:rgba(255,255,255,.04);border:1px solid var(--border-2);color:var(--ink)}
+.btn-ghost:hover{background:rgba(255,255,255,.08);border-color:#3b5685}
+.btn-outline{border:1px solid var(--cyan);color:var(--cyan);background:transparent}
+.btn-outline:hover{background:rgba(0,212,255,.08)}
+.btn-lg{padding:14px 26px;font-size:15.5px;border-radius:12px}
+.nav-burger{display:none}
+@media(max-width:960px){
+  .nav-links{display:none}
+  .nav-burger{display:grid;place-items:center;width:42px;height:42px;border-radius:9px;background:rgba(255,255,255,.05);border:1px solid var(--border)}
+  .nav-cta .btn-ghost{display:none}
+}
+
+/* HERO */
+.hero{position:relative;z-index:1;padding:88px 0 70px}
+.hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:60px;align-items:center}
+@media(max-width:960px){.hero-grid{grid-template-columns:1fr;gap:40px}}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid var(--border-2);color:var(--ink-2);font-size:13px;font-weight:500;margin-bottom:22px}
+.eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--emer);box-shadow:0 0 0 4px rgba(16,185,129,.18)}
+h1{font-family:'Inter',sans-serif;font-weight:900;font-size:clamp(40px,5.6vw,72px);line-height:1.02;letter-spacing:-1.5px;margin-bottom:14px}
+h1 .accent{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero h2{font-family:'Heebo',sans-serif;font-weight:700;font-size:clamp(22px,2.4vw,30px);color:var(--ink);margin-bottom:18px;line-height:1.25}
+.hero p.lede{color:var(--ink-2);font-size:17px;max-width:560px;margin-bottom:30px}
+.hero-cta{display:flex;flex-wrap:wrap;gap:12px}
+
+/* Dashboard mockup */
+.mock{position:relative;perspective:1600px}
+.mock-frame{transform:rotateY(8deg) rotateX(3deg);transform-style:preserve-3d;border-radius:18px;background:linear-gradient(180deg,#0e1932,#0a1226);border:1px solid var(--border-2);box-shadow:0 30px 80px -20px rgba(0,212,255,.25),0 0 0 1px rgba(255,255,255,.04) inset,0 60px 120px -40px rgba(0,0,0,.7);overflow:hidden}
+.mock-bar{display:flex;align-items:center;gap:6px;padding:12px 14px;background:linear-gradient(180deg,#152444,#0e1a34);border-bottom:1px solid var(--border)}
+.mock-bar i{width:11px;height:11px;border-radius:50%}
+.mock-bar i.r{background:#ff5f57}.mock-bar i.y{background:#febc2e}.mock-bar i.g{background:#28c840}
+.mock-body{display:grid;grid-template-columns:160px 1fr;min-height:420px}
+.mock-side{padding:14px 10px;background:#0c1730;border-left:1px solid var(--border);display:flex;flex-direction:column;gap:4px}
+.mock-side .mi{padding:9px 11px;border-radius:8px;color:var(--ink-2);font-size:12.5px;display:flex;align-items:center;gap:8px}
+.mock-side .mi.a{background:rgba(0,212,255,.10);color:#fff;border:1px solid rgba(0,212,255,.25)}
+.mock-side .mi .ic{width:14px;height:14px;border-radius:4px;background:linear-gradient(135deg,#00d4ff,#3b82f6);opacity:.85}
+.mock-main{padding:16px;display:flex;flex-direction:column;gap:14px}
+.mock-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.mock-kpi{background:#0d1830;border:1px solid var(--border);border-radius:10px;padding:11px 12px}
+.mock-kpi .lbl{font-size:10.5px;color:var(--ink-3);margin-bottom:4px}
+.mock-kpi .val{font-family:'Inter',sans-serif;font-weight:800;font-size:17px;color:#fff}
+.mock-kpi .ch{font-size:10.5px;margin-top:2px}
+.mock-kpi .ch.up{color:#10b981}.mock-kpi .ch.dn{color:#ef4444}
+.mock-charts{display:grid;grid-template-columns:1.4fr 1fr;gap:10px;flex:1}
+.mock-chart,.mock-donut{background:#0d1830;border:1px solid var(--border);border-radius:10px;padding:12px;min-height:140px;position:relative;overflow:hidden}
+.mock-chart .ttl,.mock-donut .ttl{font-size:11px;color:var(--ink-3);margin-bottom:8px;display:flex;justify-content:space-between}
+.mock-chart svg,.mock-donut svg{width:100%;height:120px}
+.mock-table{background:#0d1830;border:1px solid var(--border);border-radius:10px;padding:12px}
+.mock-table .ttl{font-size:11px;color:var(--ink-3);margin-bottom:8px}
+.mock-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;padding:7px 0;border-top:1px solid #16233f;font-size:11.5px}
+.mock-row:first-of-type{border-top:0;color:var(--ink-3);font-size:10.5px}
+.mock-pill{display:inline-block;padding:1px 7px;border-radius:6px;font-size:10px;font-weight:600}
+.mock-pill.up{background:rgba(16,185,129,.16);color:#34d399}
+.mock-pill.dn{background:rgba(239,68,68,.16);color:#fb7185}
+
+/* STATS strip */
+.stats{position:relative;z-index:1;background:rgba(7,11,24,.6);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.stats-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;padding:22px 0}
+@media(max-width:960px){.stats-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:560px){.stats-grid{grid-template-columns:repeat(2,1fr)}}
+.stat{display:flex;align-items:center;gap:12px;justify-content:center;padding:8px 6px}
+.stat .icn{width:34px;height:34px;border-radius:9px;background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.18);display:grid;place-items:center;color:var(--cyan)}
+.stat .v{font-family:'Inter',sans-serif;font-weight:800;font-size:18px;color:#fff;line-height:1}
+.stat .k{font-size:12.5px;color:var(--ink-2);margin-top:3px}
+
+/* SECTION */
+.sec{position:relative;z-index:1;padding:90px 0}
+.sec-dark{background:linear-gradient(180deg,rgba(0,0,0,.25),rgba(0,0,0,0));border-top:1px solid var(--border)}
+.sec-head{text-align:center;max-width:760px;margin:0 auto 50px}
+.sec-head h3{font-family:'Inter',sans-serif;font-weight:900;font-size:clamp(28px,3.6vw,44px);letter-spacing:-1px;margin-bottom:14px}
+.sec-head h3 span{background:var(--grad);-webkit-background-clip:text;color:transparent}
+.sec-head p{color:var(--ink-2);font-size:16.5px}
+
+/* MODULES */
+.mods{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+@media(max-width:960px){.mods{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.mods{grid-template-columns:1fr}}
+.mod{background:linear-gradient(180deg,#0f1a32,#0a1426);border:1px solid var(--border-2);border-radius:16px;padding:24px;transition:transform .25s,border-color .2s,box-shadow .25s;position:relative;overflow:hidden}
+.mod:hover{transform:translateY(-3px);border-color:rgba(0,212,255,.35);box-shadow:0 18px 40px -10px rgba(0,212,255,.18)}
+.mod::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--grad);opacity:0;transition:opacity .25s}
+.mod:hover::after{opacity:1}
+.mod .icon{width:44px;height:44px;border-radius:11px;background:rgba(0,212,255,.10);border:1px solid rgba(0,212,255,.22);display:grid;place-items:center;color:var(--cyan);margin-bottom:16px}
+.mod h4{font-family:'Inter',sans-serif;font-weight:800;font-size:19px;margin-bottom:6px}
+.mod .sub{color:var(--ink-2);font-size:14px;margin-bottom:14px;min-height:42px}
+.mod ul{list-style:none;display:flex;flex-direction:column;gap:7px;margin-bottom:14px}
+.mod li{font-size:13.5px;color:var(--ink-2);display:flex;align-items:center;gap:8px}
+.mod li::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 0 3px rgba(0,212,255,.15)}
+.mod-vis{height:84px;border-radius:10px;background:#0a1428;border:1px solid var(--border);display:grid;place-items:center;position:relative;overflow:hidden}
+.mod-vis svg{width:100%;height:100%}
+
+/* TECH */
+.tech{display:grid;grid-template-columns:1.1fr 1fr;gap:50px;align-items:center}
+@media(max-width:960px){.tech{grid-template-columns:1fr}}
+.tech-stack{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.tech-item{background:rgba(255,255,255,.025);border:1px solid var(--border);border-radius:12px;padding:18px 14px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;transition:border-color .2s,transform .15s}
+.tech-item:hover{border-color:var(--cyan);transform:translateY(-2px)}
+.tech-item .ti{width:38px;height:38px;border-radius:9px;background:rgba(0,212,255,.10);display:grid;place-items:center;color:var(--cyan)}
+.tech-item .tn{font-weight:700;font-size:14.5px;color:#fff}
+.tech-item .td{font-size:12px;color:var(--ink-3)}
+.tech-side h3{text-align:right;margin-bottom:14px}
+.tech-side p{color:var(--ink-2)}
+
+/* ROADMAP */
+.road{display:grid;grid-template-columns:1.1fr 1fr;gap:50px;align-items:center}
+@media(max-width:960px){.road{grid-template-columns:1fr}}
+.road-cards{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.rcard{background:#0d1830;border:1px solid var(--border-2);border-radius:12px;padding:16px}
+.rcard .rq{font-family:'Inter',sans-serif;font-weight:800;font-size:13px;color:var(--cyan);margin-bottom:10px;letter-spacing:.5px}
+.rcard ul{list-style:none;display:flex;flex-direction:column;gap:6px}
+.rcard li{font-size:13px;color:var(--ink-2)}
+.road-side h3{text-align:right;margin-bottom:14px}
+.road-side p{color:var(--ink-2);margin-bottom:18px}
+
+/* CTA */
+.cta{position:relative;z-index:1;margin:30px 0 0;padding:54px 0;background:linear-gradient(135deg,#0b1d3d,#0a142a);border-top:1px solid var(--border);border-bottom:1px solid var(--border);overflow:hidden}
+.cta::before{content:"";position:absolute;inset:0;background:
+  radial-gradient(40% 80% at 10% 50%, rgba(0,212,255,.18), transparent 70%),
+  radial-gradient(40% 80% at 90% 50%, rgba(124,58,237,.18), transparent 70%)}
+.cta-inner{position:relative;display:flex;align-items:center;justify-content:space-between;gap:30px;flex-wrap:wrap}
+.cta h3{font-family:'Inter',sans-serif;font-weight:900;font-size:clamp(24px,3vw,36px);letter-spacing:-.8px;margin-bottom:8px}
+.cta p{color:var(--ink-2)}
+.cta-actions{display:flex;gap:10px;flex-wrap:wrap}
+
+/* FORM */
+.form-section{position:relative;z-index:1;padding:70px 0 50px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:50px;align-items:start}
+@media(max-width:960px){.form-grid{grid-template-columns:1fr}}
+.form-side h3{font-family:'Inter',sans-serif;font-weight:900;font-size:clamp(26px,3vw,38px);letter-spacing:-.8px;margin-bottom:14px}
+.form-side p{color:var(--ink-2);margin-bottom:22px}
+.form-side .checks{list-style:none;display:flex;flex-direction:column;gap:10px;color:var(--ink)}
+.form-side .checks li{display:flex;align-items:center;gap:10px;font-size:14.5px}
+.form-side .checks li::before{content:"";width:18px;height:18px;border-radius:50%;background:rgba(0,212,255,.15);border:1px solid rgba(0,212,255,.4);display:inline-block;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2300d4ff' stroke-width='3'><polyline points='20 6 9 17 4 12'/></svg>");background-size:11px;background-repeat:no-repeat;background-position:center}
+
+.card{background:linear-gradient(180deg,#0f1a32,#0a1426);border:1px solid var(--border-2);border-radius:18px;padding:28px}
+.tabs{display:flex;background:#0a1326;border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:20px}
+.tab{flex:1;padding:10px;text-align:center;font-weight:600;font-size:14.5px;color:var(--ink-2);border-radius:7px;transition:background .2s,color .2s}
+.tab.active{background:var(--cyan);color:#001018;box-shadow:0 4px 10px rgba(0,212,255,.25)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+@media(max-width:560px){.row{grid-template-columns:1fr}}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:12.5px;color:var(--ink-2);font-weight:500}
+.field input,.field select{background:#0a1326;border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:#fff;font-size:14.5px;outline:none;transition:border-color .2s,background .2s}
+.field input::placeholder{color:#4b5b7b}
+.field input:focus,.field select:focus{border-color:var(--cyan);background:#0c182f}
+.form-submit{width:100%;margin-top:6px}
+.form-msg{margin-top:14px;padding:11px 14px;border-radius:9px;font-size:13.5px;display:none}
+.form-msg.show{display:block}
+.form-msg.ok{background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);color:#34d399}
+.form-msg.err{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:#fb7185}
+
+/* OTP */
+.otp{display:flex;gap:8px;justify-content:center;direction:ltr;margin:18px 0}
+.otp input{width:48px;height:56px;text-align:center;font-family:'Inter',sans-serif;font-weight:700;font-size:22px;background:#0a1326;border:1px solid var(--border);border-radius:10px;color:#fff;outline:none;transition:border-color .15s}
+.otp input:focus{border-color:var(--cyan)}
+.muted{color:var(--ink-3);font-size:13px;text-align:center;margin-top:4px}
+.link{color:var(--cyan);cursor:pointer;font-weight:600}
+.link:hover{text-decoration:underline}
+
+/* FOOTER */
+.foot{position:relative;z-index:1;border-top:1px solid var(--border);padding:30px 0;color:var(--ink-3);font-size:13.5px}
+.foot-inner{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px}
+.foot a{color:var(--ink-2)}
+.foot a:hover{color:#fff}
+
+/* Modal */
+.modal{position:fixed;inset:0;z-index:100;background:rgba(3,7,15,.78);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:20px}
+.modal.show{display:flex}
+.modal .card{max-width:440px;width:100%}
+.modal .x{position:absolute;top:18px;left:18px;width:38px;height:38px;border-radius:9px;background:rgba(255,255,255,.06);display:grid;place-items:center;color:#fff;border:1px solid var(--border)}
+
+/* Reveal */
+[data-reveal]{opacity:0;transform:translateY(20px);transition:opacity .8s ease,transform .8s ease}
+[data-reveal].in{opacity:1;transform:none}
+</style>
 </head>
 <body>
-    <p>מעביר לדף הבית... <a href="./react-live.html">אם לא הועברת, לחצי כאן</a>.</p>
+<div class="bgfx"></div>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="/">
+      <div class="brand-mark">E</div>
+      <div class="brand-name">EMPIREX<b>OS</b></div>
+    </a>
+    <nav class="nav-links">
+      <a href="#home">דף הבית</a>
+      <a href="#about">על המערכת</a>
+      <a href="#modules">מודולים</a>
+      <a href="#tech">טכנולוגיה</a>
+      <a href="#roadmap">מפת הדרכים</a>
+      <a href="#contact">צור קשר</a>
+    </nav>
+    <div class="nav-cta">
+      <button class="btn btn-ghost" id="btnLoginNav">כניסה למערכת</button>
+      <a href="#join" class="btn btn-primary">הירשמו עכשיו</a>
+      <button class="nav-burger" id="burger" aria-label="תפריט">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero" id="home">
+  <div class="wrap hero-grid">
+    <div data-reveal>
+      <span class="eyebrow"><span class="dot"></span>פלטפורמת המסחר המתקדמת בעולם</span>
+      <h1><span class="accent">EMPIREX OS</span></h1>
+      <h2>מערכת שלמה אחת,<br/>לכל מה שסוחר רציני צריך</h2>
+      <p class="lede">EMPIREX OS היא מערכת ההפעלה למסחר אלגוריתמי ומבוסס נתונים. שמאחדת את הכלים, המידע והכלים הדרושים לניהול אוטומציה, ניתוח וביצוע ברמה מוסדית.</p>
+      <div class="hero-cta">
+        <a href="#join" class="btn btn-primary btn-lg">הירשמו עכשיו →</a>
+        <a href="#modules" class="btn btn-ghost btn-lg">צפו במערכת בפעולה</a>
+      </div>
+    </div>
+
+    <div class="mock" data-reveal>
+      <div class="mock-frame">
+        <div class="mock-bar"><i class="r"></i><i class="y"></i><i class="g"></i><span style="margin-right:auto;font-size:11px;color:#6e7d9c">EMPIREX OS · Dashboard</span></div>
+        <div class="mock-body">
+          <aside class="mock-side">
+            <div class="mi a"><span class="ic"></span>לוח בקרה</div>
+            <div class="mi"><span class="ic"></span>אסטרטגיות</div>
+            <div class="mi"><span class="ic"></span>פורטפוליו</div>
+            <div class="mi"><span class="ic"></span>ניהול סיכונים</div>
+            <div class="mi"><span class="ic"></span>AI Agent</div>
+            <div class="mi"><span class="ic"></span>אוטומציה</div>
+            <div class="mi"><span class="ic"></span>הגדרות</div>
+          </aside>
+          <div class="mock-main">
+            <div class="mock-kpis">
+              <div class="mock-kpi"><div class="lbl">Equity</div><div class="val" id="kpi-equity">—</div><div class="ch up" id="kpi-equity-ch">חי</div></div>
+              <div class="mock-kpi"><div class="lbl">P&amp;L היום</div><div class="val" id="kpi-pnl">—</div><div class="ch up">בזמן אמת</div></div>
+              <div class="mock-kpi"><div class="lbl">Win-rate</div><div class="val" id="kpi-wr">—</div><div class="ch up">בנייה</div></div>
+              <div class="mock-kpi"><div class="lbl">פתוחות</div><div class="val" id="kpi-open">—</div><div class="ch up">חי</div></div>
+            </div>
+            <div class="mock-charts">
+              <div class="mock-chart">
+                <div class="ttl"><span>ביצועי תיק</span><span style="color:#34d399">▲ live</span></div>
+                <svg viewBox="0 0 300 110" preserveAspectRatio="none">
+                  <defs><linearGradient id="lg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#00d4ff" stop-opacity=".5"/><stop offset="1" stop-color="#00d4ff" stop-opacity="0"/></linearGradient></defs>
+                  <polyline fill="url(#lg)" stroke="none" points="0,80 0,90 30,72 60,78 90,55 120,62 150,40 180,48 210,30 240,38 270,18 300,28 300,110 0,110"/>
+                  <polyline fill="none" stroke="#00d4ff" stroke-width="2" points="0,90 30,72 60,78 90,55 120,62 150,40 180,48 210,30 240,38 270,18 300,28"/>
+                </svg>
+              </div>
+              <div class="mock-donut">
+                <div class="ttl"><span>הקצאה</span></div>
+                <svg viewBox="0 0 120 120">
+                  <circle cx="60" cy="60" r="45" fill="none" stroke="#1c2c4d" stroke-width="14"/>
+                  <circle cx="60" cy="60" r="45" fill="none" stroke="#00d4ff" stroke-width="14" stroke-dasharray="120 282" stroke-linecap="round" transform="rotate(-90 60 60)"/>
+                  <circle cx="60" cy="60" r="45" fill="none" stroke="#7c3aed" stroke-width="14" stroke-dasharray="70 282" stroke-dashoffset="-120" stroke-linecap="round" transform="rotate(-90 60 60)"/>
+                  <text x="60" y="58" text-anchor="middle" fill="#fff" font-family="Inter" font-weight="800" font-size="14">תיק</text>
+                  <text x="60" y="74" text-anchor="middle" fill="#a9b6cf" font-size="9">מאוזן</text>
+                </svg>
+              </div>
+            </div>
+            <div class="mock-table">
+              <div class="ttl">פוזיציות פתוחות</div>
+              <div class="mock-row"><div>סימול</div><div>גודל</div><div>P/L</div><div>מצב</div></div>
+              <div class="mock-row"><div>EUR/USD</div><div>1.0</div><div>+$240</div><div><span class="mock-pill up">פתוח</span></div></div>
+              <div class="mock-row"><div>BTC/USD</div><div>0.05</div><div>+$1,820</div><div><span class="mock-pill up">פתוח</span></div></div>
+              <div class="mock-row"><div>SPX500</div><div>2.0</div><div>−$120</div><div><span class="mock-pill dn">בחשיפה</span></div></div>
+              <div class="mock-row"><div>XAU/USD</div><div>0.5</div><div>+$510</div><div><span class="mock-pill up">פתוח</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS strip (REAL DATA from /api/stats) -->
+<section class="stats">
+  <div class="wrap stats-grid">
+    <div class="stat"><div class="icn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><div class="v" id="stat-status">פעיל</div><div class="k">סטטוס מערכת</div></div></div>
+    <div class="stat"><div class="icn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><div><div class="v" id="stat-ver">בטא</div><div class="k">גרסה נוכחית</div></div></div>
+    <div class="stat"><div class="icn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div><div class="v">256-bit</div><div class="k">הצפנה ב-TLS</div></div></div>
+    <div class="stat"><div class="icn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg></div><div><div class="v">24/7</div><div class="k">תמיכה ושרת</div></div></div>
+    <div class="stat"><div class="icn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 21V9"/></svg></div><div><div class="v" id="stat-uptime">—</div><div class="k">זמן פעולה</div></div></div>
+    <div class="stat"><div class="icn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M17 11a4 4 0 1 0 0-8M2 21v-2a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v2M22 21v-2a6 6 0 0 0-4-5.66"/></svg></div><div><div class="v" id="stat-users">—</div><div class="k">משתמשים רשומים</div></div></div>
+  </div>
+</section>
+
+<!-- MODULES -->
+<section class="sec sec-dark" id="modules">
+  <div class="wrap">
+    <div class="sec-head" data-reveal>
+      <h3>כל המודולים. <span>מערכת אחת.</span></h3>
+      <p>EMPIREX OS מאחדת את כל הרכיבים החיוניים למסחר מתקדם, בפלטפורמה אחת אינטגרטיבית ועוצמתית.</p>
+    </div>
+    <div class="mods">
+
+      <div class="mod" data-reveal>
+        <div class="icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="14 7 21 7 21 14"/></svg></div>
+        <h4>מנוע מסחר</h4>
+        <div class="sub">מנוע מסחר מתקדם עם ביצוע ברמה מוסדית.</div>
+        <ul><li>ביצוע מהיר במונים</li><li>תמיכה בריבוי נכסים</li><li>Smart Order Routing</li></ul>
+        <div class="mod-vis"><svg viewBox="0 0 300 80"><polyline fill="none" stroke="#00d4ff" stroke-width="2" points="0,60 30,52 60,58 90,40 120,46 150,28 180,34 210,18 240,26 270,12 300,20"/></svg></div>
+      </div>
+
+      <div class="mod" data-reveal>
+        <div class="icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L3 7v6c0 5 4 9 9 9s9-4 9-9V7l-9-5z"/></svg></div>
+        <h4>פורטפוליו</h4>
+        <div class="sub">ניהול תיק ההשקעות חכם ומתקדם.</div>
+        <ul><li>ניתוח ביצועים</li><li>איזון אוטומטי</li><li>דוחות מקצועיים</li></ul>
+        <div class="mod-vis"><svg viewBox="0 0 80 80"><circle cx="40" cy="40" r="28" fill="none" stroke="#1c2c4d" stroke-width="8"/><circle cx="40" cy="40" r="28" fill="none" stroke="#00d4ff" stroke-width="8" stroke-dasharray="90 176" transform="rotate(-90 40 40)"/></svg></div>
+      </div>
+
+      <div class="mod" data-reveal>
+        <div class="icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-12V5l-8-3-8 3v5c0 8 8 12 8 12z"/></svg></div>
+        <h4>ניהול סיכונים</h4>
+        <div class="sub">מערכת ניהול סיכונים רב-שכבתית.</div>
+        <ul><li>VaR &amp; Stress Tests</li><li>מגבלות דינמיות</li><li>התרעות חכמות</li></ul>
+        <div class="mod-vis"><svg viewBox="0 0 300 80"><rect x="20" y="30" width="20" height="40" fill="#10b981"/><rect x="60" y="20" width="20" height="50" fill="#10b981"/><rect x="100" y="40" width="20" height="30" fill="#f59e0b"/><rect x="140" y="35" width="20" height="35" fill="#10b981"/><rect x="180" y="50" width="20" height="20" fill="#ef4444"/><rect x="220" y="25" width="20" height="45" fill="#10b981"/><rect x="260" y="30" width="20" height="40" fill="#10b981"/></svg></div>
+      </div>
+
+      <div class="mod" data-reveal>
+        <div class="icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M4 9h16M9 4v16"/></svg></div>
+        <h4>יומן מסחר</h4>
+        <div class="sub">יומן מסחר חכם לסוחר חכם.</div>
+        <ul><li>מעקב עסקאות</li><li>ניתוח ביצועים</li><li>תובנות מקצועיות</li></ul>
+        <div class="mod-vis"><svg viewBox="0 0 300 80"><g stroke="#00d4ff" stroke-width="1.5" fill="none"><circle cx="60" cy="40" r="8"/><circle cx="150" cy="40" r="8"/><circle cx="240" cy="40" r="8"/><line x1="68" y1="40" x2="142" y2="40"/><line x1="158" y1="40" x2="232" y2="40"/></g></svg></div>
+      </div>
+
+      <div class="mod" data-reveal>
+        <div class="icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></svg></div>
+        <h4>AI Agent</h4>
+        <div class="sub">סוכן מבוסס בינה מלאכותית.</div>
+        <ul><li>ניתוח שוק בזמן אמת</li><li>המלצות חכמות</li><li>למידה מתמשכת</li></ul>
+        <div class="mod-vis"><svg viewBox="0 0 300 80"><g fill="#00d4ff"><circle cx="50" cy="40" r="3"/><circle cx="100" cy="20" r="3"/><circle cx="100" cy="60" r="3"/><circle cx="150" cy="40" r="3"/><circle cx="200" cy="25" r="3"/><circle cx="200" cy="55" r="3"/><circle cx="250" cy="40" r="3"/></g><g stroke="#00d4ff" stroke-width="1" fill="none" opacity=".5"><line x1="50" y1="40" x2="100" y2="20"/><line x1="50" y1="40" x2="100" y2="60"/><line x1="100" y1="20" x2="150" y2="40"/><line x1="100" y1="60" x2="150" y2="40"/><line x1="150" y1="40" x2="200" y2="25"/><line x1="150" y1="40" x2="200" y2="55"/><line x1="200" y1="25" x2="250" y2="40"/><line x1="200" y1="55" x2="250" y2="40"/></g></svg></div>
+      </div>
+
+      <div class="mod" data-reveal>
+        <div class="icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 0 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 0 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 0 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5h0a1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 0 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></div>
+        <h4>אוטומציה</h4>
+        <div class="sub">אוטומציה מלאה של אסטרטגיות.</div>
+        <ul><li>בנייה ויזואלית</li><li>Backtesting מקיף</li><li>Deployment אוטומטי</li></ul>
+        <div class="mod-vis"><svg viewBox="0 0 300 80"><g fill="none" stroke="#00d4ff" stroke-width="1.5"><rect x="20" y="30" width="50" height="20" rx="4"/><rect x="125" y="30" width="50" height="20" rx="4"/><rect x="230" y="30" width="50" height="20" rx="4"/><line x1="70" y1="40" x2="125" y2="40" marker-end="url(#ar)"/><line x1="175" y1="40" x2="230" y2="40" marker-end="url(#ar)"/></g><defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#00d4ff"/></marker></defs></svg></div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- TECH -->
+<section class="sec" id="tech">
+  <div class="wrap tech">
+    <div class="tech-stack" data-reveal>
+      <div class="tech-item"><div class="ti"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg></div><div class="tn">Multi-Cloud</div><div class="td">תשתית גמישה</div></div>
+      <div class="tech-item"><div class="ti"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h6l2-4 4 8 2-4h6"/></svg></div><div class="tn">WebSocket</div><div class="td">תקשורת חיה</div></div>
+      <div class="tech-item"><div class="ti"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="3" r="2"/><circle cx="3" cy="12" r="2"/><circle cx="12" cy="21" r="2"/><circle cx="21" cy="12" r="2"/></svg></div><div class="tn">Microservices</div><div class="td">ארכיטקטורה</div></div>
+      <div class="tech-item"><div class="ti"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M7 8V4h10v4"/></svg></div><div class="tn">Docker</div><div class="td">קונטיינרים</div></div>
+      <div class="tech-item"><div class="ti"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/></svg></div><div class="tn">Kubernetes</div><div class="td">תזמור</div></div>
+      <div class="tech-item"><div class="ti"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.7 4 3 9 3s9-1.3 9-3V5M3 11v6c0 1.7 4 3 9 3s9-1.3 9-3v-6"/></svg></div><div class="tn">PostgreSQL</div><div class="td">בסיס נתונים</div></div>
+    </div>
+    <div class="tech-side" data-reveal>
+      <h3>טכנולוגיה <span style="background:var(--grad);-webkit-background-clip:text;color:transparent">ללא פשרות</span></h3>
+      <p>בנינו את EMPIREX OS על גבי תשתית טכנולוגית מתקדמת, יציבה ובטוחה — שמבטיחה ביצועים מעולים בכל תנאי השוק.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ROADMAP -->
+<section class="sec sec-dark" id="roadmap">
+  <div class="wrap road">
+    <div class="road-cards" data-reveal>
+      <div class="rcard"><div class="rq">PHASE 1 · עכשיו</div><ul><li>הרשמה עם OTP אמיתי</li><li>תשתית שרת ענן</li><li>API מאובטח (HTTPS+TLS)</li></ul></div>
+      <div class="rcard"><div class="rq">PHASE 2 · בהמשך</div><ul><li>חיבור ברוקרים MT4/MT5</li><li>נתוני שוק חיים</li><li>אסטרטגיות בסיסיות</li></ul></div>
+      <div class="rcard"><div class="rq">PHASE 3</div><ul><li>AI Agent v1</li><li>Backtesting מלא</li><li>אפליקציה מובייל</li></ul></div>
+      <div class="rcard"><div class="rq">PHASE 4</div><ul><li>Machine Learning</li><li>Options Trading</li><li>הרחבה גלובלית</li></ul></div>
+    </div>
+    <div class="road-side" data-reveal>
+      <h3>מפת <span style="background:var(--grad);-webkit-background-clip:text;color:transparent">הדרכים</span></h3>
+      <p>הצצה שקופה לקראת מה אנחנו בונים — ולמה זה שווה את ההמתנה.</p>
+      <a href="#join" class="btn btn-ghost">הצטרפו לרשימת ההמתנה</a>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta">
+  <div class="wrap cta-inner">
+    <div>
+      <h3>מוכן לקחת את המסחר שלך לרמה הבאה?</h3>
+      <p>הצטרפו לרשימת ההמתנה — בלי בולשיט, בלי הבטחות שווא.</p>
+    </div>
+    <div class="cta-actions">
+      <a href="#join" class="btn btn-primary btn-lg">הירשמו עכשיו</a>
+      <button class="btn btn-outline btn-lg" id="btnLoginCta">יש לי חשבון — כניסה</button>
+    </div>
+  </div>
+</section>
+
+<!-- FORM -->
+<section class="form-section" id="join">
+  <div class="wrap form-grid">
+    <div class="form-side" data-reveal>
+      <h3>הצטרפו ל-<span style="background:var(--grad);-webkit-background-clip:text;color:transparent">EMPIREX OS</span></h3>
+      <p>הרשמה אמיתית עם אימות OTP חי בדוא"ל. אין שדות מיותרים, אין הבטחות מנופחות.</p>
+      <ul class="checks">
+        <li>גישה מוקדמת לבטא הסגורה</li>
+        <li>אימות מאובטח באמצעות קוד חד-פעמי</li>
+        <li>ביטול בכל רגע, ללא התחייבות</li>
+      </ul>
+    </div>
+
+    <div class="card" id="joinCard">
+      <div class="tabs">
+        <div class="tab active" data-tab="register" id="tabRegister">הרשמה חדשה</div>
+        <div class="tab" data-tab="login" id="tabLogin">כניסה</div>
+      </div>
+
+      <!-- REGISTER -->
+      <form id="formRegister" autocomplete="on" novalidate>
+        <div class="row">
+          <div class="field"><label>שם מלא</label><input name="fullName" type="text" placeholder="הזן את שמך" required /></div>
+          <div class="field"><label>סוג חשבון</label>
+            <select name="profile" required>
+              <option value="">בחר…</option>
+              <option value="Retail">סוחר פרטי</option>
+              <option value="Pro">סוחר מקצועי</option>
+              <option value="Developer">מפתח / בונה אסטרטגיות</option>
+              <option value="Fund">קרן / מוסדי</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field"><label>אימייל</label><input name="email" type="email" placeholder="your@email.com" required /></div>
+          <div class="field"><label>טלפון (לא חובה)</label><input name="phone" type="tel" placeholder="054-1234567" /></div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg form-submit">קבל קוד אימות →</button>
+        <div class="form-msg" id="msgRegister"></div>
+      </form>
+
+      <!-- LOGIN -->
+      <form id="formLogin" autocomplete="on" novalidate style="display:none">
+        <div class="field" style="margin-bottom:12px"><label>אימייל הרשום במערכת</label><input name="email" type="email" placeholder="your@email.com" required /></div>
+        <button type="submit" class="btn btn-primary btn-lg form-submit">שלח לי קוד כניסה →</button>
+        <div class="form-msg" id="msgLogin"></div>
+      </form>
+
+      <!-- VERIFY -->
+      <div id="verifyBox" style="display:none">
+        <div class="muted" id="verifyTo" style="margin-bottom:8px;font-size:14px;color:var(--ink-2)"></div>
+        <div class="otp" id="otpInputs">
+          <input maxlength="1" inputmode="numeric" /><input maxlength="1" inputmode="numeric" /><input maxlength="1" inputmode="numeric" /><input maxlength="1" inputmode="numeric" /><input maxlength="1" inputmode="numeric" /><input maxlength="1" inputmode="numeric" />
+        </div>
+        <button type="button" class="btn btn-primary btn-lg form-submit" id="btnVerify">אמת קוד והיכנס</button>
+        <div class="form-msg" id="msgVerify"></div>
+        <div class="muted" style="margin-top:14px">לא קיבלת? <span class="link" id="btnResend">שלח קוד מחדש</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="foot">
+  <div class="wrap foot-inner">
+    <div>© <span id="yr"></span> EMPIREX OS · כל הזכויות שמורות</div>
+    <div style="display:flex;gap:18px"><a href="#">תנאי שימוש</a><a href="#">מדיניות פרטיות</a><a href="#contact">צור קשר</a></div>
+  </div>
+</footer>
+
+<!-- LOGIN MODAL (also accessible from nav) -->
+<div class="modal" id="loginModal" role="dialog" aria-modal="true">
+  <div class="card" style="position:relative">
+    <button class="x" id="closeLogin" aria-label="סגור">✕</button>
+    <h3 style="font-family:Inter;font-weight:800;font-size:24px;margin-bottom:6px">כניסה למערכת</h3>
+    <p style="color:var(--ink-2);margin-bottom:18px;font-size:14.5px">הזן את האימייל שלך וקבל קוד כניסה חד-פעמי.</p>
+    <form id="formModalLogin" novalidate>
+      <div class="field" style="margin-bottom:12px"><label>אימייל</label><input name="email" type="email" placeholder="your@email.com" required /></div>
+      <button type="submit" class="btn btn-primary btn-lg form-submit">שלח לי קוד →</button>
+      <div class="form-msg" id="msgModalLogin"></div>
+    </form>
+    <div class="muted" style="margin-top:14px">אין לך חשבון? <span class="link" id="goRegister">הירשם עכשיו</span></div>
+  </div>
+</div>
+
+<script>
+const API = location.origin.includes('localhost') ? 'http://localhost:5501' : '';
+const $ = (s,c=document)=>c.querySelector(s);
+const $$=(s,c=document)=>[...c.querySelectorAll(s)];
+
+$('#yr').textContent = new Date().getFullYear();
+
+// Reveal on scroll
+const io = new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.15});
+$$('[data-reveal]').forEach(el=>io.observe(el));
+
+// Live stats from API
+function fmtUptime(s){
+  const d=Math.floor(s/86400), h=Math.floor((s%86400)/3600), m=Math.floor((s%3600)/60);
+  if(d>0) return d+'d '+h+'h';
+  if(h>0) return h+'h '+m+'m';
+  return m+'m';
+}
+fetch(API+'/api/stats').then(r=>r.json()).then(j=>{
+  if(!j||!j.ok) return;
+  const d=j.data||{};
+  $('#stat-ver').textContent = d.version || 'בטא';
+  $('#stat-uptime').textContent = fmtUptime(d.uptimeSeconds||0);
+  $('#stat-users').textContent = (d.registrations||0).toLocaleString('he-IL');
+}).catch(()=>{});
+
+// KPIs: show real states (no fake numbers). If user is logged in we could fetch portfolio, but for guests show honest placeholders.
+const session = localStorage.getItem('empx_session');
+if(!session){
+  $('#kpi-equity').textContent='—';
+  $('#kpi-equity-ch').textContent='התחבר';
+  $('#kpi-pnl').textContent='—';
+  $('#kpi-wr').textContent='—';
+  $('#kpi-open').textContent='0';
+} else {
+  // placeholder – will be replaced when portfolio API is live
+  $('#kpi-equity').textContent='—';
+  $('#kpi-pnl').textContent='—';
+  $('#kpi-wr').textContent='—';
+  $('#kpi-open').textContent='0';
+}
+
+// Tabs
+function showTab(t){
+  $('#tabRegister').classList.toggle('active',t==='register');
+  $('#tabLogin').classList.toggle('active',t==='login');
+  $('#formRegister').style.display=(t==='register'?'':'none');
+  $('#formLogin').style.display=(t==='login'?'':'none');
+  $('#verifyBox').style.display='none';
+}
+$('#tabRegister').onclick=()=>showTab('register');
+$('#tabLogin').onclick=()=>showTab('login');
+
+// Smooth jump from nav login → form login tab
+function jumpToLogin(){
+  showTab('login');
+  document.getElementById('join').scrollIntoView({behavior:'smooth'});
+}
+$('#btnLoginCta').onclick=jumpToLogin;
+
+// Login modal from top nav
+const modal=$('#loginModal');
+$('#btnLoginNav').onclick=()=>modal.classList.add('show');
+$('#closeLogin').onclick=()=>modal.classList.remove('show');
+modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('show')});
+$('#goRegister').onclick=()=>{modal.classList.remove('show');showTab('register');document.getElementById('join').scrollIntoView({behavior:'smooth'})};
+
+// OTP inputs
+const otps=$$('#otpInputs input');
+otps.forEach((inp,i)=>{
+  inp.addEventListener('input',e=>{
+    inp.value=inp.value.replace(/\D/g,'').slice(0,1);
+    if(inp.value && i<otps.length-1) otps[i+1].focus();
+  });
+  inp.addEventListener('keydown',e=>{if(e.key==='Backspace' && !inp.value && i>0) otps[i-1].focus()});
+  inp.addEventListener('paste',e=>{
+    const t=(e.clipboardData||window.clipboardData).getData('text').replace(/\D/g,'').slice(0,6);
+    if(!t) return; e.preventDefault();
+    [...t].forEach((c,k)=>{if(otps[k]){otps[k].value=c}}); (otps[Math.min(t.length,5)]||otps[5]).focus();
+  });
+});
+
+function showMsg(el,type,txt){el.className='form-msg show '+type;el.textContent=txt}
+function hideMsg(el){el.className='form-msg'}
+
+let currentChannel='email', currentEmail='', currentPhone='', regId=0, mode='register';
+
+// REGISTER submit
+$('#formRegister').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const f=e.target, msg=$('#msgRegister');
+  const body={
+    fullName:f.fullName.value.trim(),
+    profile:f.profile.value,
+    email:f.email.value.trim().toLowerCase(),
+    phone:f.phone.value.trim(),
+    verificationChannel:'email'
+  };
+  if(!body.fullName||!body.profile||!body.email){showMsg(msg,'err','נא למלא את השדות החובה');return}
+  hideMsg(msg);
+  const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='שולח קוד…';
+  try{
+    const r=await fetch(API+'/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const j=await r.json();
+    if(!r.ok||!j.ok){showMsg(msg,'err',j.error||'שגיאה לא ידועה');btn.disabled=false;btn.textContent='קבל קוד אימות →';return}
+    currentChannel='email'; currentEmail=body.email; currentPhone=body.phone; regId=j.data.registrationId; mode='register';
+    $('#verifyTo').textContent='הקוד נשלח ל-'+currentEmail+' · תוקף 10 דקות';
+    $('#formRegister').style.display='none'; $('#formLogin').style.display='none'; $('#verifyBox').style.display='block';
+    otps[0].focus();
+  }catch(err){showMsg(msg,'err','כשל בתקשורת. נסה שוב.');btn.disabled=false;btn.textContent='קבל קוד אימות →'}
+});
+
+// LOGIN submit (form on page)
+$('#formLogin').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const f=e.target, msg=$('#msgLogin');
+  const email=f.email.value.trim().toLowerCase();
+  if(!email){showMsg(msg,'err','הזן אימייל');return}
+  hideMsg(msg);
+  const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='שולח קוד…';
+  try{
+    const r=await fetch(API+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+    const j=await r.json();
+    if(!r.ok||!j.ok){showMsg(msg,'err',j.error||'שגיאה');btn.disabled=false;btn.textContent='שלח לי קוד כניסה →';return}
+    currentChannel='email'; currentEmail=email; regId=j.data.registrationId; mode='login';
+    $('#verifyTo').textContent='קוד כניסה נשלח ל-'+email+' · תוקף 10 דקות';
+    $('#formRegister').style.display='none'; $('#formLogin').style.display='none'; $('#verifyBox').style.display='block';
+    otps[0].focus();
+  }catch(err){showMsg(msg,'err','כשל בתקשורת');btn.disabled=false;btn.textContent='שלח לי קוד כניסה →'}
+});
+
+// LOGIN submit (modal)
+$('#formModalLogin').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const f=e.target, msg=$('#msgModalLogin');
+  const email=f.email.value.trim().toLowerCase();
+  if(!email){showMsg(msg,'err','הזן אימייל');return}
+  hideMsg(msg);
+  const btn=f.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='שולח…';
+  try{
+    const r=await fetch(API+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+    const j=await r.json();
+    if(!r.ok||!j.ok){showMsg(msg,'err',j.error||'שגיאה');btn.disabled=false;btn.textContent='שלח לי קוד →';return}
+    currentChannel='email'; currentEmail=email; regId=j.data.registrationId; mode='login';
+    modal.classList.remove('show');
+    showTab('login');
+    $('#verifyTo').textContent='קוד כניסה נשלח ל-'+email+' · תוקף 10 דקות';
+    $('#formRegister').style.display='none'; $('#formLogin').style.display='none'; $('#verifyBox').style.display='block';
+    document.getElementById('join').scrollIntoView({behavior:'smooth'});
+    otps[0].focus();
+    btn.disabled=false;btn.textContent='שלח לי קוד →';
+  }catch(err){showMsg(msg,'err','כשל בתקשורת');btn.disabled=false;btn.textContent='שלח לי קוד →'}
+});
+
+// VERIFY
+$('#btnVerify').onclick=async ()=>{
+  const code=otps.map(i=>i.value).join('');
+  const msg=$('#msgVerify');
+  if(code.length!==6){showMsg(msg,'err','הזן 6 ספרות');return}
+  hideMsg(msg);
+  const btn=$('#btnVerify'); btn.disabled=true; btn.textContent='מאמת…';
+  try{
+    const r=await fetch(API+'/api/verify-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:currentEmail,phone:currentPhone,code,verificationChannel:currentChannel})});
+    const j=await r.json();
+    if(!r.ok||!j.ok){showMsg(msg,'err',j.error||'קוד שגוי');btn.disabled=false;btn.textContent='אמת קוד והיכנס';return}
+    showMsg(msg,'ok','הצלחה! מעביר אותך למערכת…');
+    localStorage.setItem('empx_session',j.data.sessionToken);
+    localStorage.setItem('empx_user',JSON.stringify({email:j.data.email,fullName:j.data.fullName}));
+    setTimeout(()=>{location.href=j.data.redirectTo||'/home-live.html'},800);
+  }catch(err){showMsg(msg,'err','כשל בתקשורת');btn.disabled=false;btn.textContent='אמת קוד והיכנס'}
+};
+
+// RESEND
+$('#btnResend').onclick=async ()=>{
+  const msg=$('#msgVerify'); hideMsg(msg);
+  const url = mode==='login' ? '/api/login' : '/api/resend-code';
+  const body = mode==='login' ? {email:currentEmail} : {email:currentEmail,phone:currentPhone,verificationChannel:currentChannel};
+  try{
+    const r=await fetch(API+url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const j=await r.json();
+    if(!r.ok||!j.ok){showMsg(msg,'err',j.error||'שגיאה');return}
+    showMsg(msg,'ok','קוד חדש נשלח.');
+  }catch(err){showMsg(msg,'err','כשל בתקשורת')}
+};
+</script>
 </body>
 </html>

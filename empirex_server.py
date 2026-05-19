@@ -240,6 +240,8 @@ def _connect_fetch_mt5(server: str, login: str, password: str) -> tuple[dict | N
 # ─────────────────────────────────────────────────────────────────────────────
 
 APP_ENV = os.getenv("APP_ENV", "development").lower()
+APP_VERSION = os.getenv("APP_VERSION", "1.0.0-beta")
+SERVER_STARTED_AT = datetime.now(timezone.utc)
 OTP_SECRET = os.getenv("OTP_SECRET", "dev_otp_secret")
 OTP_EXPIRY_MINUTES = int(os.getenv("OTP_EXPIRY_MINUTES", "10"))
 OTP_RESEND_COOLDOWN_SECONDS = int(os.getenv("OTP_RESEND_COOLDOWN_SECONDS", "60"))
@@ -1585,6 +1587,10 @@ class EmpirexHandler(SimpleHTTPRequestHandler):
             self._json_response(200, {"ok": True, "service": "empirex-registration-api", "env": APP_ENV})
             return
 
+        if parsed.path == "/api/stats":
+            self._handle_stats()
+            return
+
         if parsed.path == "/api/registrations":
             with get_conn() as conn:
                 rows = conn.execute(
@@ -1701,6 +1707,10 @@ class EmpirexHandler(SimpleHTTPRequestHandler):
 
         if parsed.path == "/api/resend-code":
             self._handle_resend_code()
+            return
+
+        if parsed.path == "/api/login":
+            self._handle_login()
             return
 
         if parsed.path == "/api/logout":
@@ -2333,18 +2343,102 @@ class EmpirexHandler(SimpleHTTPRequestHandler):
             response_payload["data"]["devCode"] = code
         self._json_response(200, response_payload)
 
-    def _handle_logout(self) -> None:
+    def _handle_login(self) -> None:
         payload = self._read_json_body()
-        token = str(payload.get("token", "")).strip()
-        if not token:
-            self._json_response(400, {"ok": False, "error": "Missing token"})
+        email = str(payload.get("email", "")).strip().lower()
+        phone = normalize_phone(str(payload.get("phone", "")).strip())
+        channel = "email" if email else ("phone" if phone else "")
+
+        if not channel:
+            self._json_response(400, {"ok": False, "error": "Missing email or phone"})
             return
 
+        identifier = email if channel == "email" else phone
+
         with get_conn() as conn:
-            conn.execute("DELETE FROM registration_sessions WHERE token = ?", (token,))
+            if channel == "email":
+                row = conn.execute("SELECT * FROM registrations WHERE email = ?", (email,)).fetchone()
+            else:
+                row = conn.execute("SELECT * FROM registrations WHERE phone = ?", (phone,)).fetchone()
+
+            if not row:
+                self._json_response(404, {"ok": False, "error": "משתמש לא קיים. אנא הירשם."})
+                return
+
+            verified = bool(row["email_verified"]) if channel == "email" else bool(row["phone_verified"])
+            if not verified:
+                self._json_response(403, {"ok": False, "error": "החשבון טרם אומת. סיים תהליך הרשמה."})
+                return
+
+            last_sent = parse_iso(row["last_code_sent_at"])
+            if last_sent:
+                elapsed = (utc_now() - last_sent).total_seconds()
+                if elapsed < OTP_RESEND_COOLDOWN_SECONDS:
+                    wait_sec = int(OTP_RESEND_COOLDOWN_SECONDS - elapsed)
+                    self._json_response(429, {"ok": False, "error": f"המתן {wait_sec} שניות לפני שליחה חוזרת"})
+                    return
+
+            code = make_otp_code()
+            code_hash = hash_otp(identifier, code)
+            expires_at = utc_iso(utc_now() + timedelta(minutes=OTP_EXPIRY_MINUTES))
+            sent_at = utc_iso(utc_now())
+
+            conn.execute(
+                """
+                UPDATE registrations
+                SET verification_code_hash = ?, verification_expires_at = ?,
+                    verification_attempts = 0, last_code_sent_at = ?, verification_channel = ?
+                WHERE id = ?
+                """,
+                (code_hash, expires_at, sent_at, channel, row["id"]),
+            )
             conn.commit()
 
-        self._json_response(200, {"ok": True, "message": "Logged out"})
+        ok, delivery_message = self._send_verification(channel, row["email"], row["phone"] or "", code, row["full_name"])
+        if not ok:
+            self._json_response(500, {"ok": False, "error": delivery_message})
+            return
+
+        response_payload = {
+            "ok": True,
+            "message": "קוד התחברות נשלח",
+            "data": {
+                "registrationId": int(row["id"]),
+                "channel": channel,
+                "email": None if (row["email"] or "").endswith("@phone.local") else row["email"],
+                "phone": row["phone"],
+                "expiresInMinutes": OTP_EXPIRY_MINUTES,
+                "deliveryMessage": delivery_message,
+            },
+        }
+        if APP_ENV != "production":
+            response_payload["data"]["devCode"] = code
+        self._json_response(200, response_payload)
+
+    def _handle_stats(self) -> None:
+        try:
+            with get_conn() as conn:
+                total = conn.execute("SELECT COUNT(*) AS c FROM registrations").fetchone()["c"]
+                verified = conn.execute(
+                    "SELECT COUNT(*) AS c FROM registrations WHERE email_verified = 1 OR phone_verified = 1"
+                ).fetchone()["c"]
+        except Exception:
+            total = 0
+            verified = 0
+        uptime_sec = int((utc_now() - SERVER_STARTED_AT).total_seconds()) if 'SERVER_STARTED_AT' in globals() else 0
+        self._json_response(200, {
+            "ok": True,
+            "data": {
+                "registrations": int(total),
+                "verified": int(verified),
+                "uptimeSeconds": uptime_sec,
+                "env": APP_ENV,
+                "version": APP_VERSION if 'APP_VERSION' in globals() else "1.0.0-beta",
+                "tls": "256-bit",
+            },
+        })
+
+    def _handle_logout(self) -> None:
 
     def _handle_broker_connect(self) -> None:
         """Connect to a broker and return real account data."""
