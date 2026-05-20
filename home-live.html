@@ -3973,6 +3973,24 @@
             }
 
             useEffect(() => {
+                // Decode HMAC-signed token payload locally (without verifying signature)
+                // so the user is never bounced to login when the server has a temporary
+                // hiccup. The server still validates on every API call that needs auth.
+                function decodeLocalToken(tok) {
+                    try {
+                        if (!tok || typeof tok !== "string") return null;
+                        const parts = tok.split(".");
+                        if (parts.length !== 2) return null;
+                        let b = parts[0].replace(/-/g, "+").replace(/_/g, "/");
+                        const pad = b.length % 4; if (pad) b += "=".repeat(4 - pad);
+                        const json = decodeURIComponent(escape(atob(b)));
+                        const payload = JSON.parse(json);
+                        if (!payload || typeof payload !== "object") return null;
+                        if (payload.exp && payload.exp * 1000 < Date.now()) return null;
+                        return payload;
+                    } catch { return null; }
+                }
+
                 const validateSession = async () => {
                     if (TEMP_ALLOW_HOME_WITHOUT_LOGIN) {
                         setAuthChecked(true);
@@ -3990,17 +4008,41 @@
                         return;
                     }
 
+                    // Fast-path: trust well-formed, unexpired token locally — never bounce
+                    // the user out due to a slow/cold-started backend.
+                    const localPayload = decodeLocalToken(sessionToken);
+                    if (localPayload) {
+                        if (localPayload.name) setUserName(localPayload.name);
+                        else setUserName(getUserNameFromContext());
+                        setAuthChecked(true);
+                    }
+
+                    // Background validation: only kick out on a *definite* 401 from the
+                    // server. Network errors, 5xx, or timeouts → keep the user logged in.
                     try {
                         const response = await fetch(`/api/session/validate?token=${encodeURIComponent(sessionToken)}`);
-                        const result = await response.json();
-                        if (!response.ok || !result.ok) {
-                            throw new Error(result.error || "Session invalid");
+                        if (response.status === 401) {
+                            localStorage.removeItem("empirex_session_token");
+                            window.location.replace("/?reason=session-expired");
+                            return;
                         }
-                        setUserName(result?.data?.fullName || getUserNameFromContext());
-                        setAuthChecked(true);
+                        if (response.ok) {
+                            const result = await response.json();
+                            if (result && result.ok && result.data) {
+                                if (result.data.fullName) setUserName(result.data.fullName);
+                                if (!localPayload) setAuthChecked(true);
+                            }
+                        } else if (!localPayload) {
+                            // Server unreachable AND no local payload → kick to login
+                            localStorage.removeItem("empirex_session_token");
+                            window.location.replace("/?reason=session-expired");
+                        }
                     } catch (error) {
-                        localStorage.removeItem("empirex_session_token");
-                        window.location.replace("/?reason=session-expired");
+                        // Network failure — if we have local payload, stay logged in.
+                        if (!localPayload) {
+                            localStorage.removeItem("empirex_session_token");
+                            window.location.replace("/?reason=session-expired");
+                        }
                     }
                 };
 
