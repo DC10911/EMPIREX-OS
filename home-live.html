@@ -2662,6 +2662,622 @@
         // ────────────────────────────────────────────────────────────────────────
 
         // ════════════════════════════════════════════════════════════════════════
+        // TradingSection — חדר מסחר מוסדי: TradingView Widget + Execution + Signals + Terminal
+        // ════════════════════════════════════════════════════════════════════════
+        // NOTE: This is a Demo / Paper trading desk. No real orders are sent.
+        // TODO: Replace TradingView Widget with TradingView Charting Library + private Datafeed.
+        // TODO: Wire ExecutionPanel actions to a real broker bridge (MT5 / Interactive Brokers / cTrader API).
+        // TODO: Connect Signal Engine to a real /api/signals/tradingview webhook from the EMPIREX Pine indicator.
+        // ════════════════════════════════════════════════════════════════════════
+        const TRADING_SYMBOLS = [
+            { label:"EUR/USD",  value:"OANDA:EURUSD",     assetClass:"Forex",  precision:5 },
+            { label:"GBP/USD",  value:"OANDA:GBPUSD",     assetClass:"Forex",  precision:5 },
+            { label:"Gold",     value:"OANDA:XAUUSD",     assetClass:"Metals", precision:2 },
+            { label:"BTC/USDT", value:"BINANCE:BTCUSDT",  assetClass:"Crypto", precision:2 },
+            { label:"ETH/USDT", value:"BINANCE:ETHUSDT",  assetClass:"Crypto", precision:2 },
+            { label:"NAS100",   value:"NASDAQ:NDX",       assetClass:"Index",  precision:2 },
+            { label:"US30",     value:"TVC:DJI",          assetClass:"Index",  precision:2 },
+            { label:"SPX500",   value:"SP:SPX",           assetClass:"Index",  precision:2 },
+        ];
+        const TRADING_TIMEFRAMES = [
+            { label:"1m",  value:"1"   },
+            { label:"5m",  value:"5"   },
+            { label:"15m", value:"15"  },
+            { label:"30m", value:"30"  },
+            { label:"1H",  value:"60"  },
+            { label:"4H",  value:"240" },
+            { label:"1D",  value:"D"   },
+        ];
+
+        // Market session helper (Asia / London / Overlap / New York / Off Hours) based on local hour
+        function getMarketSession(d = new Date()) {
+            const h = d.getHours();
+            if (h >= 2 && h < 10)  return { name:"Asia",        tone:"#38BDF8", chip:"bg-sky-400/15 text-sky-300 border-sky-400/30" };
+            if (h >= 10 && h < 15) return { name:"London",      tone:"#A78BFA", chip:"bg-violet-400/15 text-violet-300 border-violet-400/30" };
+            if (h >= 15 && h < 18) return { name:"London / NY", tone:"#F59E0B", chip:"bg-amber-400/15 text-amber-300 border-amber-400/30" };
+            if (h >= 18 && h < 23) return { name:"New York",    tone:"#22C55E", chip:"bg-emerald-400/15 text-emerald-300 border-emerald-400/30" };
+            return { name:"Off Hours", tone:"#94A3B8", chip:"bg-slate-500/15 text-slate-300 border-slate-500/30" };
+        }
+
+        // Risk Guard rule engine (Demo)
+        function evaluateRiskGuard({ entry, sl, tp, riskPct, direction }) {
+            const e = parseFloat(entry), s = parseFloat(sl), t = parseFloat(tp);
+            if (!isFinite(e) || !isFinite(s)) return { status:"BLOCKED", reason:"חסר Stop Loss תקין", tone:"#EF4444" };
+            if (!isFinite(t))                  return { status:"WARNING", reason:"חסר Take Profit",     tone:"#F59E0B" };
+            const isLong = direction === "BUY";
+            const risk   = isLong ? (e - s) : (s - e);
+            const reward = isLong ? (t - e) : (e - t);
+            if (risk <= 0 || reward <= 0)      return { status:"BLOCKED", reason:"כיווני SL/TP לא תקינים", tone:"#EF4444" };
+            const rr = reward / risk;
+            if (rr < 1.5)                      return { status:"WARNING", reason:"יחס סיכון/סיכוי נמוך מ-1.5", tone:"#F59E0B" };
+            if (parseFloat(riskPct) > 1)       return { status:"WARNING", reason:"סיכון לעסקה מעל 1%", tone:"#F59E0B" };
+            return { status:"VALID", reason:"העסקה עומדת בכללי הדמו", tone:"#22C55E" };
+        }
+
+        // TradingView Widget — Real Advanced Real-Time Chart
+        // Handles single-script load, container cleanup, symbol/interval/theme changes, Strict Mode.
+        let __tvScriptLoading = null;
+        function loadTradingViewScript() {
+            if (typeof window === "undefined") return Promise.reject(new Error("no-window"));
+            if (window.TradingView && window.TradingView.widget) return Promise.resolve();
+            if (__tvScriptLoading) return __tvScriptLoading;
+            __tvScriptLoading = new Promise((resolve, reject) => {
+                const existing = document.getElementById("__tv_widget_script");
+                if (existing) { existing.addEventListener("load", () => resolve()); existing.addEventListener("error", reject); return; }
+                const s = document.createElement("script");
+                s.id = "__tv_widget_script";
+                s.src = "https://s3.tradingview.com/tv.js";
+                s.async = true;
+                s.onload = () => resolve();
+                s.onerror = () => reject(new Error("tv-load-failed"));
+                document.head.appendChild(s);
+            });
+            return __tvScriptLoading;
+        }
+
+        function TradingViewChart({ symbol = "OANDA:EURUSD", interval = "5", theme = "dark", locale = "en", height = 560 }) {
+            const containerIdRef = React.useRef("tv_chart_" + Math.random().toString(36).slice(2, 10));
+            const [status, setStatus] = React.useState("loading"); // loading | ready | error
+
+            React.useEffect(() => {
+                let cancelled = false;
+                setStatus("loading");
+                loadTradingViewScript().then(() => {
+                    if (cancelled) return;
+                    const el = document.getElementById(containerIdRef.current);
+                    if (!el) { setStatus("error"); return; }
+                    el.innerHTML = ""; // clean previous instance to avoid duplicates / Strict Mode double-mount
+                    try {
+                        // eslint-disable-next-line no-new
+                        new window.TradingView.widget({
+                            autosize: true,
+                            symbol,
+                            interval,
+                            timezone: "Asia/Jerusalem",
+                            theme,
+                            style: "1",
+                            locale,
+                            toolbar_bg: "#05070D",
+                            enable_publishing: false,
+                            hide_top_toolbar: false,
+                            hide_legend: false,
+                            save_image: false,
+                            calendar: false,
+                            allow_symbol_change: true,
+                            withdateranges: true,
+                            details: true,
+                            hotlist: false,
+                            studies: ["Volume@tv-basicstudies"],
+                            watchlist: ["OANDA:EURUSD","OANDA:GBPUSD","OANDA:XAUUSD","BINANCE:BTCUSDT","BINANCE:ETHUSDT","NASDAQ:NDX","TVC:DJI","SP:SPX"],
+                            container_id: containerIdRef.current,
+                        });
+                        setStatus("ready");
+                    } catch (err) {
+                        console.error("TradingView widget error:", err);
+                        setStatus("error");
+                    }
+                }).catch(() => { if (!cancelled) setStatus("error"); });
+
+                return () => {
+                    cancelled = true;
+                    const el = document.getElementById(containerIdRef.current);
+                    if (el) el.innerHTML = "";
+                };
+            }, [symbol, interval, theme, locale]);
+
+            return (
+                <div className="relative" style={{ height }}>
+                    <div id={containerIdRef.current} className="absolute inset-0 rounded-2xl overflow-hidden" />
+                    {status === "loading" && (
+                        <div className="absolute inset-0 grid place-items-center rounded-2xl bg-[#05070D]/85 text-slate-300">
+                            <div className="flex flex-col items-center gap-3">
+                                <svg className="h-7 w-7 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity=".25"/><path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>
+                                <span className="text-xs font-bold tracking-wide text-slate-400">טוען גרף TradingView…</span>
+                            </div>
+                        </div>
+                    )}
+                    {status === "error" && (
+                        <div className="absolute inset-0 grid place-items-center rounded-2xl border border-rose-500/30 bg-[#0B0F1A]/95 p-6 text-center">
+                            <div>
+                                <div className="text-rose-300 font-black mb-1">לא ניתן לטעון את גרף TradingView</div>
+                                <div className="text-xs text-slate-400">בדוק חיבור רשת / ad-blocker / חסימת scripts. ננסה שוב בשינוי סימבול או טיימפריים.</div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        function TradingSection() {
+            const [symbol, setSymbol]         = React.useState("OANDA:EURUSD");
+            const [interval, setInterval]     = React.useState("5");
+            const [now, setNow]               = React.useState(new Date());
+            const [entry, setEntry]           = React.useState("");
+            const [sl, setSl]                 = React.useState("");
+            const [tp, setTp]                 = React.useState("");
+            const [riskPct, setRiskPct]       = React.useState("0.5");
+            const [direction, setDirection]   = React.useState(null); // BUY | SELL | null (preview)
+            const [orders, setOrders]         = React.useState([]);   // demo orders
+            const [positions, setPositions]   = React.useState([]);   // demo positions
+            const [signalLog, setSignalLog]   = React.useState([]);   // signals received
+            const [alerts, setAlerts]         = React.useState([
+                { t: new Date(), level:"info",    text:"TradingView chart connected" },
+                { t: new Date(), level:"info",    text:"Risk Guard active — Paper Mode" },
+                { t: new Date(), level:"warning", text:"Signal Engine waiting for indicator webhook" },
+            ]);
+            const [terminalTab, setTerminalTab] = React.useState("positions");
+            const [flash, setFlash]           = React.useState(null);
+
+            // live clock
+            React.useEffect(() => {
+                const id = window.setInterval(() => setNow(new Date()), 1000);
+                return () => window.clearInterval(id);
+            }, []);
+
+            // mock signal — TODO: replace with real signal stream from EMPIREX Signal Engine / TradingView Webhook
+            const session    = getMarketSession(now);
+            const symbolMeta = TRADING_SYMBOLS.find(s => s.value === symbol) || TRADING_SYMBOLS[0];
+            const mockSignal = React.useMemo(() => ({
+                direction:  "NEUTRAL",
+                confidence: 72,
+                setup:      "Waiting for liquidity confirmation",
+                structure:  "Range → Potential breakout",
+                liquidity:  "External liquidity nearby",
+                trendBias:  "Bullish (HTF)",
+                riskState:  "WAITING",
+                timestamp:  now,
+            }), [symbol, interval]); // eslint-disable-line
+
+            // computed paper account (demo)
+            const balance     = 10000;
+            const equity      = balance + positions.reduce((s,p) => s + (p.pnl || 0), 0);
+            const dailyPnl    = orders.reduce((s,o) => s + (o.pnl || 0), 0);
+            const maxDaily    = 300;
+
+            // R/R preview for current inputs (uses BUY as default if no direction picked)
+            const previewDir  = direction || "BUY";
+            const guard       = evaluateRiskGuard({ entry, sl, tp, riskPct, direction: previewDir });
+            const rrPreview   = (() => {
+                const e = parseFloat(entry), s = parseFloat(sl), t = parseFloat(tp);
+                if (!isFinite(e) || !isFinite(s) || !isFinite(t)) return null;
+                const risk   = previewDir === "BUY" ? (e - s) : (s - e);
+                const reward = previewDir === "BUY" ? (t - e) : (e - t);
+                if (risk <= 0 || reward <= 0) return null;
+                return reward / risk;
+            })();
+            const estRisk     = balance * (parseFloat(riskPct || 0) / 100);
+            const estReward   = rrPreview != null ? estRisk * rrPreview : null;
+            const lotSize     = (() => {
+                const e = parseFloat(entry), s = parseFloat(sl);
+                if (!isFinite(e) || !isFinite(s) || e === s) return null;
+                const perUnitRisk = Math.abs(e - s);
+                return (estRisk / perUnitRisk);
+            })();
+
+            const flashMsg = (text, tone = "ok") => {
+                setFlash({ text, tone });
+                window.clearTimeout(flashMsg._t);
+                flashMsg._t = window.setTimeout(() => setFlash(null), 2600);
+            };
+
+            const placeDemoOrder = (side) => {
+                if (guard.status === "BLOCKED") {
+                    flashMsg("נחסם ע״י Risk Guard: " + guard.reason, "err");
+                    return;
+                }
+                const order = {
+                    id:        "DEMO-" + Math.random().toString(36).slice(2, 8).toUpperCase(),
+                    side,
+                    symbol:    symbolMeta.label,
+                    entry:     parseFloat(entry),
+                    sl:        parseFloat(sl),
+                    tp:        parseFloat(tp),
+                    lot:       lotSize ? lotSize.toFixed(2) : "-",
+                    rr:        rrPreview ? rrPreview.toFixed(2) : "-",
+                    riskPct,
+                    risk:      estRisk.toFixed(2),
+                    reward:    estReward ? estReward.toFixed(2) : "-",
+                    status:    "PAPER",
+                    pnl:       0,
+                    timestamp: new Date(),
+                };
+                setOrders(o => [order, ...o].slice(0, 50));
+                setPositions(p => [{ ...order, status:"OPEN" }, ...p].slice(0, 20));
+                setSignalLog(l => [{
+                    t: new Date(), symbol: symbolMeta.label, direction: side,
+                    confidence: mockSignal.confidence, setup: "Manual demo entry", status: "Logged"
+                }, ...l].slice(0, 80));
+                setDirection(side);
+                flashMsg("Demo " + side + " הוכן: " + order.id, "ok");
+            };
+
+            const clearTicket = () => { setEntry(""); setSl(""); setTp(""); setDirection(null); flashMsg("הטופס נוקה"); };
+
+            const sendToJournal = () => {
+                if (!entry || !sl || !tp) { flashMsg("מלא Entry / SL / TP לפני שליחה ליומן", "err"); return; }
+                setAlerts(a => [{ t: new Date(), level:"info", text:`רישום ליומן: ${symbolMeta.label} ${previewDir} @ ${entry}` }, ...a].slice(0, 20));
+                flashMsg("נשלח ליומן");
+            };
+
+            // small UI helpers
+            const Pill = ({ children, tone = "slate" }) => {
+                const TONES = {
+                    slate:   "bg-slate-500/15 text-slate-300 border-slate-400/25",
+                    cyan:    "bg-cyan-500/15 text-cyan-300 border-cyan-400/30",
+                    green:   "bg-emerald-500/15 text-emerald-300 border-emerald-400/30",
+                    red:     "bg-rose-500/15 text-rose-300 border-rose-400/30",
+                    amber:   "bg-amber-500/15 text-amber-300 border-amber-400/30",
+                    violet:  "bg-violet-500/15 text-violet-300 border-violet-400/30",
+                };
+                return <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold ${TONES[tone] || TONES.slate}`}>{children}</span>;
+            };
+            const Panel = ({ title, right, children, className = "" }) => (
+                <div className={`relative overflow-hidden rounded-2xl border border-slate-400/15 backdrop-blur-xl ${className}`}
+                     style={{ background:"rgba(15,23,42,0.75)", boxShadow:"0 10px 40px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,0.02)" }}>
+                    <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent" />
+                    {(title || right) && (
+                        <div className="flex items-center justify-between border-b border-slate-400/10 px-4 py-2.5">
+                            {title && <h3 className="text-[12px] font-black uppercase tracking-[0.18em] text-slate-300">{title}</h3>}
+                            {right}
+                        </div>
+                    )}
+                    <div className="p-4">{children}</div>
+                </div>
+            );
+            const Stat = ({ label, value, tone = "text-white" }) => (
+                <div className="flex items-center justify-between rounded-lg border border-slate-400/10 bg-slate-900/40 px-3 py-2">
+                    <span className="text-[11px] font-bold text-slate-400">{label}</span>
+                    <span className={`text-sm font-black tabular-nums ${tone}`}>{value}</span>
+                </div>
+            );
+            const fmtTime = (d) => d.toLocaleTimeString("he-IL", { hour:"2-digit", minute:"2-digit", second:"2-digit" });
+
+            return (
+                <div dir="rtl" className="mx-auto max-w-[1640px] px-2 pt-4 pb-12 text-slate-100"
+                     style={{ background:"linear-gradient(180deg,#05070D 0%,#080B12 60%,#05070D 100%)" }}>
+
+                    {/* ─── Trading Header ─── */}
+                    <Panel className="mb-3">
+                        <div className="flex flex-wrap items-center justify-between gap-4">
+                            {/* RTL right cluster */}
+                            <div className="flex items-center gap-3">
+                                <div className="grid h-10 w-10 place-items-center rounded-xl border border-cyan-400/40 bg-cyan-400/10 text-cyan-300 font-black">EX</div>
+                                <div>
+                                    <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">EMPIREX OS</div>
+                                    <div className="flex items-center gap-2 text-lg font-black text-white">מסחר <span className="text-xs font-bold text-slate-400">· Live Market Desk</span></div>
+                                </div>
+                            </div>
+
+                            {/* center cluster: symbol + timeframe + session */}
+                            <div className="flex flex-wrap items-center gap-2">
+                                <div className="flex items-center gap-1 rounded-xl border border-slate-400/15 bg-slate-900/60 p-1">
+                                    <span className="px-2 text-[11px] font-bold text-slate-400">Symbol</span>
+                                    <select value={symbol} onChange={e => setSymbol(e.target.value)}
+                                        className="rounded-lg bg-transparent px-2 py-1.5 text-sm font-black text-white outline-none">
+                                        {TRADING_SYMBOLS.map(s => (
+                                            <option key={s.value} value={s.value} className="bg-slate-900 text-white">{s.label} · {s.assetClass}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="flex items-center gap-1 rounded-xl border border-slate-400/15 bg-slate-900/60 p-1">
+                                    {TRADING_TIMEFRAMES.map(tf => (
+                                        <button key={tf.value} onClick={() => setInterval(tf.value)}
+                                            className={`rounded-lg px-2.5 py-1 text-[12px] font-black transition ${interval === tf.value ? "bg-cyan-500/25 text-cyan-200 ring-1 ring-cyan-400/40" : "text-slate-300 hover:bg-slate-700/40"}`}>
+                                            {tf.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold ${session.chip}`}>
+                                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: session.tone }} /> Session: {session.name}
+                                </span>
+                            </div>
+
+                            {/* left cluster: status + clock */}
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Pill tone="cyan">  <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" /> TradingView: Connected</Pill>
+                                <Pill tone="amber"> <span className="h-1.5 w-1.5 rounded-full bg-amber-400" /> Signal Engine: Waiting</Pill>
+                                <Pill tone="green"> <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Risk Guard: Active</Pill>
+                                <span className="rounded-lg border border-slate-400/15 bg-slate-900/60 px-2.5 py-1 text-sm font-black tabular-nums text-white">{fmtTime(now)}</span>
+                            </div>
+                        </div>
+                    </Panel>
+
+                    {/* ─── Main grid: chart + execution panel ─── */}
+                    <div className="grid grid-cols-12 gap-3">
+                        {/* Chart card (RTL: order matters via grid order classes) */}
+                        <div className="order-2 col-span-12 xl:order-1 xl:col-span-9">
+                            <Panel
+                                title={`Live Chart · ${symbolMeta.label}`}
+                                right={
+                                    <div className="flex items-center gap-2">
+                                        <Pill tone="violet">{symbolMeta.assetClass}</Pill>
+                                        <Pill tone="slate">TF {TRADING_TIMEFRAMES.find(t => t.value === interval)?.label}</Pill>
+                                    </div>
+                                }
+                            >
+                                <div className="relative">
+                                    {/* Signal Overlay — HTML over the chart (Widget cannot draw inside) */}
+                                    <div className="pointer-events-none absolute right-3 top-3 z-10 max-w-[300px] rounded-xl border border-slate-400/20 bg-[#05070D]/85 p-3 backdrop-blur-md">
+                                        <div className="mb-2 flex items-center justify-between">
+                                            <span className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Signal Engine</span>
+                                            <Pill tone={mockSignal.direction === "LONG" ? "green" : mockSignal.direction === "SHORT" ? "red" : "slate"}>
+                                                {mockSignal.direction}
+                                            </Pill>
+                                        </div>
+                                        <div className="flex items-end justify-between">
+                                            <div className="text-2xl font-black text-white tabular-nums">{mockSignal.confidence}<span className="text-sm text-slate-400">%</span></div>
+                                            <div className="text-[10px] text-slate-400">Confidence</div>
+                                        </div>
+                                        <div className="my-2 h-1 w-full overflow-hidden rounded-full bg-slate-700/40">
+                                            <div className="h-full rounded-full"
+                                                 style={{ width: mockSignal.confidence + "%", background:"linear-gradient(90deg,#38BDF8,#A78BFA)" }} />
+                                        </div>
+                                        <ul className="space-y-1 text-[11px] text-slate-300">
+                                            <li><span className="text-slate-500">Setup:</span> {mockSignal.setup}</li>
+                                            <li><span className="text-slate-500">Structure:</span> {mockSignal.structure}</li>
+                                            <li><span className="text-slate-500">Liquidity:</span> {mockSignal.liquidity}</li>
+                                            <li><span className="text-slate-500">Trend Bias:</span> {mockSignal.trendBias}</li>
+                                            <li><span className="text-slate-500">Risk State:</span> <span className="text-amber-300 font-bold">{mockSignal.riskState}</span></li>
+                                            <li><span className="text-slate-500">Last:</span> {fmtTime(mockSignal.timestamp)}</li>
+                                        </ul>
+                                    </div>
+
+                                    <TradingViewChart symbol={symbol} interval={interval} theme="dark" locale="en" height={620} />
+                                </div>
+                            </Panel>
+                        </div>
+
+                        {/* Execution panel */}
+                        <div className="order-1 col-span-12 xl:order-2 xl:col-span-3 space-y-3">
+                            <Panel title="Account · Paper" right={<Pill tone="cyan">Demo Mode</Pill>}>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <Stat label="Balance"    value={"$" + balance.toLocaleString()} />
+                                    <Stat label="Equity"     value={"$" + equity.toFixed(2)} />
+                                    <Stat label="Daily PnL"  value={(dailyPnl >= 0 ? "+$" : "-$") + Math.abs(dailyPnl).toFixed(2)} tone={dailyPnl >= 0 ? "text-emerald-300" : "text-rose-300"} />
+                                    <Stat label="Max Daily Risk" value={"$" + maxDaily} tone="text-amber-300" />
+                                </div>
+                            </Panel>
+
+                            <Panel title="Execution Ticket" right={
+                                <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-wider`}
+                                      style={{ borderColor: guard.tone + "55", color: guard.tone, background: guard.tone + "15" }}>
+                                    Risk Guard · {guard.status}
+                                </span>
+                            }>
+                                <div className="mb-2 rounded-lg border border-slate-400/10 bg-slate-900/40 px-3 py-2 text-[11px] text-slate-300">
+                                    <span className="text-slate-500">סטטוס:</span> {guard.reason}
+                                </div>
+
+                                <div className="mb-2">
+                                    <label className="mb-1 block text-[11px] font-bold text-slate-400">Risk Per Trade</label>
+                                    <div className="flex gap-1">
+                                        {["0.25","0.5","0.75","1"].map(r => (
+                                            <button key={r} onClick={() => setRiskPct(r)}
+                                                className={`flex-1 rounded-lg border px-2 py-1.5 text-[12px] font-black transition ${riskPct === r ? "border-cyan-400/50 bg-cyan-400/15 text-cyan-200" : "border-slate-400/15 bg-slate-900/40 text-slate-300 hover:bg-slate-800/60"}`}>
+                                                {r}%
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-2">
+                                    {[
+                                        { label:"Entry", v:entry, set:setEntry, ph:"מחיר כניסה" },
+                                        { label:"SL",    v:sl,    set:setSl,    ph:"Stop Loss" },
+                                        { label:"TP",    v:tp,    set:setTp,    ph:"Take Profit" },
+                                    ].map(f => (
+                                        <div key={f.label}>
+                                            <label className="mb-1 block text-[10px] font-bold text-slate-400">{f.label}</label>
+                                            <input type="number" inputMode="decimal" value={f.v} onChange={e => f.set(e.target.value)} placeholder={f.ph}
+                                                className="w-full rounded-lg border border-slate-400/15 bg-slate-900/60 px-2 py-1.5 text-sm font-black text-white tabular-nums outline-none placeholder:text-slate-600 focus:border-cyan-400/40 focus:ring-1 focus:ring-cyan-400/30" />
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="mt-3 grid grid-cols-2 gap-2">
+                                    <Stat label="Position Size" value={lotSize ? lotSize.toFixed(2) : "—"} />
+                                    <Stat label="R:R"           value={rrPreview ? rrPreview.toFixed(2) : "—"} tone={rrPreview && rrPreview >= 1.5 ? "text-emerald-300" : "text-amber-300"} />
+                                    <Stat label="Est. Risk"     value={"$" + estRisk.toFixed(2)} tone="text-rose-300" />
+                                    <Stat label="Est. Reward"   value={estReward ? "$" + estReward.toFixed(2) : "—"} tone="text-emerald-300" />
+                                </div>
+
+                                <div className="mt-3 grid grid-cols-2 gap-2">
+                                    <button onClick={() => placeDemoOrder("BUY")}
+                                        disabled={guard.status === "BLOCKED"}
+                                        className="rounded-xl border border-emerald-400/40 bg-emerald-500/20 px-3 py-2.5 text-sm font-black text-emerald-200 transition hover:bg-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50">
+                                        ▲ BUY · DEMO
+                                    </button>
+                                    <button onClick={() => placeDemoOrder("SELL")}
+                                        disabled={guard.status === "BLOCKED"}
+                                        className="rounded-xl border border-rose-400/40 bg-rose-500/20 px-3 py-2.5 text-sm font-black text-rose-200 transition hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:opacity-50">
+                                        ▼ SELL · DEMO
+                                    </button>
+                                    <button onClick={clearTicket}
+                                        className="rounded-xl border border-slate-400/20 bg-slate-800/40 px-3 py-2 text-xs font-black text-slate-300 transition hover:bg-slate-800/70">
+                                        CLEAR
+                                    </button>
+                                    <button onClick={sendToJournal}
+                                        className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-3 py-2 text-xs font-black text-cyan-200 transition hover:bg-cyan-500/20">
+                                        SEND TO JOURNAL
+                                    </button>
+                                </div>
+
+                                <p className="mt-3 text-[10px] leading-relaxed text-slate-500">
+                                    הוראות אינן נשלחות לברוקר אמיתי. כל הפעולות הן Paper / Demo בלבד.
+                                    {/* TODO: integrate broker bridge (MT5 / IB / cTrader) behind a confirmation modal. */}
+                                </p>
+                            </Panel>
+
+                            <Panel title="Signal · Current Bias">
+                                <div className="space-y-2">
+                                    <Stat label="Direction"   value={mockSignal.direction} tone={mockSignal.direction === "LONG" ? "text-emerald-300" : mockSignal.direction === "SHORT" ? "text-rose-300" : "text-slate-300"} />
+                                    <Stat label="Confidence"  value={mockSignal.confidence + "%"} tone="text-cyan-300" />
+                                    <Stat label="Structure"   value={mockSignal.structure} />
+                                    <Stat label="Liquidity"   value={mockSignal.liquidity} />
+                                    <Stat label="Trend Bias"  value={mockSignal.trendBias} tone="text-violet-300" />
+                                    <Stat label="Risk State"  value={mockSignal.riskState} tone="text-amber-300" />
+                                </div>
+                                <div className="mt-2 rounded-lg border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-[11px] text-amber-200">
+                                    ⚠ אין מספיק אישורים — ממתינים ל-Liquidity Sweep + BOS + OB Retest.
+                                </div>
+                            </Panel>
+                        </div>
+                    </div>
+
+                    {/* ─── Bottom Terminal ─── */}
+                    <div className="mt-3">
+                        <Panel title="Terminal" right={
+                            <div className="flex items-center gap-1">
+                                {[
+                                    ["positions","Positions"],
+                                    ["orders","Orders"],
+                                    ["signals","Signal Log"],
+                                    ["alerts","Alerts"],
+                                    ["journal","Journal"],
+                                ].map(([k,l]) => (
+                                    <button key={k} onClick={() => setTerminalTab(k)}
+                                        className={`rounded-lg px-2.5 py-1 text-[12px] font-black transition ${terminalTab === k ? "bg-cyan-500/20 text-cyan-200 ring-1 ring-cyan-400/40" : "text-slate-400 hover:bg-slate-800/40"}`}>
+                                        {l}
+                                    </button>
+                                ))}
+                            </div>
+                        }>
+                            <div className="overflow-x-auto">
+                                {terminalTab === "positions" && (
+                                    positions.length === 0 ? (
+                                        <div className="py-6 text-center text-sm text-slate-500">No open positions · המתנה לכניסה חוקית</div>
+                                    ) : (
+                                        <table className="min-w-full text-sm">
+                                            <thead><tr className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                                {["#","Symbol","Side","Entry","SL","TP","Lot","R:R","PnL","Status"].map(h => <th key={h} className="px-3 py-2 text-right">{h}</th>)}
+                                            </tr></thead>
+                                            <tbody>
+                                                {positions.map((p,i) => (
+                                                    <tr key={p.id} className="border-t border-slate-400/10">
+                                                        <td className="px-3 py-2 font-mono text-xs text-slate-500">{i+1}</td>
+                                                        <td className="px-3 py-2 font-black text-white">{p.symbol}</td>
+                                                        <td className={`px-3 py-2 font-black ${p.side === "BUY" ? "text-emerald-300" : "text-rose-300"}`}>{p.side}</td>
+                                                        <td className="px-3 py-2 tabular-nums text-slate-200">{p.entry}</td>
+                                                        <td className="px-3 py-2 tabular-nums text-rose-300">{p.sl}</td>
+                                                        <td className="px-3 py-2 tabular-nums text-emerald-300">{p.tp}</td>
+                                                        <td className="px-3 py-2 tabular-nums text-slate-300">{p.lot}</td>
+                                                        <td className="px-3 py-2 tabular-nums text-cyan-300">{p.rr}</td>
+                                                        <td className="px-3 py-2 tabular-nums text-slate-300">{p.pnl?.toFixed?.(2) ?? "0.00"}</td>
+                                                        <td className="px-3 py-2"><Pill tone="cyan">{p.status}</Pill></td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    )
+                                )}
+                                {terminalTab === "orders" && (
+                                    orders.length === 0 ? (
+                                        <div className="py-6 text-center text-sm text-slate-500">אין הוראות דמו עדיין</div>
+                                    ) : (
+                                        <table className="min-w-full text-sm">
+                                            <thead><tr className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                                {["Time","ID","Symbol","Side","Entry","SL","TP","R:R","Risk %","Status"].map(h => <th key={h} className="px-3 py-2 text-right">{h}</th>)}
+                                            </tr></thead>
+                                            <tbody>
+                                                {orders.map(o => (
+                                                    <tr key={o.id} className="border-t border-slate-400/10">
+                                                        <td className="px-3 py-2 text-slate-400 text-xs">{fmtTime(o.timestamp)}</td>
+                                                        <td className="px-3 py-2 font-mono text-xs text-slate-300">{o.id}</td>
+                                                        <td className="px-3 py-2 font-black text-white">{o.symbol}</td>
+                                                        <td className={`px-3 py-2 font-black ${o.side === "BUY" ? "text-emerald-300" : "text-rose-300"}`}>{o.side}</td>
+                                                        <td className="px-3 py-2 tabular-nums">{o.entry}</td>
+                                                        <td className="px-3 py-2 tabular-nums text-rose-300">{o.sl}</td>
+                                                        <td className="px-3 py-2 tabular-nums text-emerald-300">{o.tp}</td>
+                                                        <td className="px-3 py-2 tabular-nums text-cyan-300">{o.rr}</td>
+                                                        <td className="px-3 py-2 tabular-nums">{o.riskPct}%</td>
+                                                        <td className="px-3 py-2"><Pill tone="violet">{o.status}</Pill></td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    )
+                                )}
+                                {terminalTab === "signals" && (
+                                    <table className="min-w-full text-sm">
+                                        <thead><tr className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                            {["Time","Symbol","Direction","Confidence","Setup","Status"].map(h => <th key={h} className="px-3 py-2 text-right">{h}</th>)}
+                                        </tr></thead>
+                                        <tbody>
+                                            {signalLog.length === 0 ? (
+                                                <tr><td colSpan={6} className="py-6 text-center text-sm text-slate-500">אין אותות שנרשמו עדיין — ממתינים ל-Pine webhook.</td></tr>
+                                            ) : signalLog.map((s,i) => (
+                                                <tr key={i} className="border-t border-slate-400/10">
+                                                    <td className="px-3 py-2 text-xs text-slate-400">{fmtTime(s.t)}</td>
+                                                    <td className="px-3 py-2 font-black text-white">{s.symbol}</td>
+                                                    <td className={`px-3 py-2 font-black ${s.direction === "BUY" || s.direction === "LONG" ? "text-emerald-300" : "text-rose-300"}`}>{s.direction}</td>
+                                                    <td className="px-3 py-2 tabular-nums text-cyan-300">{s.confidence}%</td>
+                                                    <td className="px-3 py-2 text-slate-300">{s.setup}</td>
+                                                    <td className="px-3 py-2"><Pill tone="slate">{s.status}</Pill></td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
+                                {terminalTab === "alerts" && (
+                                    <ul className="divide-y divide-slate-400/10">
+                                        {alerts.map((a,i) => (
+                                            <li key={i} className="flex items-center justify-between px-2 py-2 text-sm">
+                                                <span className="flex items-center gap-2">
+                                                    <span className={`h-2 w-2 rounded-full ${a.level === "warning" ? "bg-amber-400" : a.level === "error" ? "bg-rose-400" : "bg-cyan-400"}`} />
+                                                    <span className="text-slate-200">{a.text}</span>
+                                                </span>
+                                                <span className="text-[11px] text-slate-500">{fmtTime(a.t)}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                                {terminalTab === "journal" && (
+                                    <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                                        <Stat label="Today Trades"    value={orders.length} />
+                                        <Stat label="Win Rate"        value="—" />
+                                        <Stat label="Rule Violations" value="0" tone="text-emerald-300" />
+                                        <Stat label="Open Positions"  value={positions.length} />
+                                        <div className="col-span-2 md:col-span-4 rounded-lg border border-slate-400/10 bg-slate-900/40 p-3 text-sm text-slate-300">
+                                            <span className="text-slate-500">AI Summary:</span> No completed trades yet. ה-Risk Guard פעיל, ה-Signal Engine ממתין לאישור מהאינדיקטור.
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </Panel>
+                    </div>
+
+                    {/* Flash toast */}
+                    {flash && (
+                        <div className={`pointer-events-none fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl border px-4 py-2.5 text-sm font-black backdrop-blur-md ${flash.tone === "err" ? "border-rose-400/40 bg-rose-500/20 text-rose-100" : "border-cyan-400/40 bg-cyan-500/20 text-cyan-100"}`}>
+                            {flash.text}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+        // ────────────────────────────────────────────────────────────────────────
+
+        // ════════════════════════════════════════════════════════════════════════
         // MarketsSection — שווקים: כתבות חדשות אמיתיות שמשפיעות על שוק
         // ════════════════════════════════════════════════════════════════════════
         function MarketsSection({ marketData = {} }) {
@@ -3702,11 +4318,12 @@
                 "יומן":      DARK_BG,
                 "אוטומציה":  "linear-gradient(160deg,#E0F2FE 0%,#BAE6FD 40%,#7DD3FC 100%)",
                 "AI Agent":  DARK_BG,
+                "מסחר":      "linear-gradient(180deg,#05070D 0%,#080B12 60%,#05070D 100%)",
                 "שווקים":    "linear-gradient(160deg,#FFF7ED 0%,#FFEDD5 40%,#FED7AA 100%)",
                 "הגדרות":   "linear-gradient(160deg,#F5F3FF 0%,#EDE9FE 40%,#DDD6FE 100%)",
             };
             const pageBg = PAGE_BG[activeSection];
-            const isDarkPage = activeSection === "AI Agent" || activeSection === "יומן";
+            const isDarkPage = activeSection === "AI Agent" || activeSection === "יומן" || activeSection === "מסחר";
             return (
                 <div dir="rtl" className={`min-h-screen ${isDarkPage ? "text-white" : "text-[#07124A]"} selection:bg-cyan-200/60 relative`} style={pageBg ? { background: pageBg } : { background:"#F7FAFF" }}>
                     {/* Grid overlay for dark pages (Journal + Agent) — matches the design spec */}
@@ -3758,6 +4375,8 @@
                             />
                         ) : activeSection === "שווקים" ? (
                             <MarketsSection marketData={marketData} />
+                        ) : activeSection === "מסחר" ? (
+                            <TradingSection />
                         ) : activeSection === "הגדרות" ? (
                             <SettingsSection userName={userName} setUserName={setUserName} />
                         ) : (<>
