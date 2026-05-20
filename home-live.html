@@ -2932,80 +2932,89 @@
             return { status:"VALID", reason:"העסקה עומדת בכללי הדמו", tone:"#22C55E" };
         }
 
-        // TradingView Widget — Real Advanced Real-Time Chart
-        // Handles single-script load, container cleanup, symbol/interval/theme changes, Strict Mode.
-        let __tvScriptLoading = null;
-        function loadTradingViewScript() {
-            if (typeof window === "undefined") return Promise.reject(new Error("no-window"));
-            if (window.TradingView && window.TradingView.widget) return Promise.resolve();
-            if (__tvScriptLoading) return __tvScriptLoading;
-            __tvScriptLoading = new Promise((resolve, reject) => {
-                const existing = document.getElementById("__tv_widget_script");
-                if (existing) { existing.addEventListener("load", () => resolve()); existing.addEventListener("error", reject); return; }
-                const s = document.createElement("script");
-                s.id = "__tv_widget_script";
-                s.src = "https://s3.tradingview.com/tv.js";
-                s.async = true;
-                s.onload = () => resolve();
-                s.onerror = () => reject(new Error("tv-load-failed"));
-                document.head.appendChild(s);
-            });
-            return __tvScriptLoading;
-        }
-
+        // TradingView Widget — Official Advanced Real-Time Chart embed
+        // Uses the documented embed-widget-advanced-chart.js pattern (most reliable, no global TradingView dependency)
         function TradingViewChart({ symbol = "OANDA:EURUSD", interval = "5", theme = "dark", locale = "en", height = 560 }) {
-            const containerIdRef = React.useRef("tv_chart_" + Math.random().toString(36).slice(2, 10));
+            const hostRef = React.useRef(null);
             const [status, setStatus] = React.useState("loading"); // loading | ready | error
 
             React.useEffect(() => {
+                const host = hostRef.current;
+                if (!host) return;
                 let cancelled = false;
+                let timeoutId = null;
                 setStatus("loading");
-                loadTradingViewScript().then(() => {
+
+                // Clean any previous content (Strict Mode double-mount / symbol change)
+                host.innerHTML = "";
+
+                // Build container expected by the embed widget
+                const container = document.createElement("div");
+                container.className = "tradingview-widget-container";
+                container.style.height = "100%";
+                container.style.width = "100%";
+
+                const widgetDiv = document.createElement("div");
+                widgetDiv.className = "tradingview-widget-container__widget";
+                widgetDiv.style.height = "100%";
+                widgetDiv.style.width = "100%";
+                container.appendChild(widgetDiv);
+
+                const script = document.createElement("script");
+                script.type = "text/javascript";
+                script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
+                script.async = true;
+                script.innerHTML = JSON.stringify({
+                    autosize: true,
+                    symbol: symbol,
+                    interval: interval,
+                    timezone: "Asia/Jerusalem",
+                    theme: theme,
+                    style: "1",
+                    locale: locale,
+                    toolbar_bg: "#05070D",
+                    enable_publishing: false,
+                    hide_top_toolbar: false,
+                    hide_legend: false,
+                    save_image: false,
+                    calendar: false,
+                    allow_symbol_change: true,
+                    withdateranges: true,
+                    details: false,
+                    hotlist: false,
+                    studies: ["Volume@tv-basicstudies"],
+                    support_host: "https://www.tradingview.com"
+                });
+                script.onload = () => { if (!cancelled) setStatus("ready"); };
+                script.onerror = () => { if (!cancelled) setStatus("error"); };
+                container.appendChild(script);
+                host.appendChild(container);
+
+                // Safety: if iframe doesn't appear in 8s, mark error
+                timeoutId = setTimeout(() => {
                     if (cancelled) return;
-                    const el = document.getElementById(containerIdRef.current);
-                    if (!el) { setStatus("error"); return; }
-                    el.innerHTML = ""; // clean previous instance to avoid duplicates / Strict Mode double-mount
-                    try {
-                        // eslint-disable-next-line no-new
-                        new window.TradingView.widget({
-                            autosize: true,
-                            symbol,
-                            interval,
-                            timezone: "Asia/Jerusalem",
-                            theme,
-                            style: "1",
-                            locale,
-                            toolbar_bg: "#05070D",
-                            enable_publishing: false,
-                            hide_top_toolbar: false,
-                            hide_legend: false,
-                            save_image: false,
-                            calendar: false,
-                            allow_symbol_change: true,
-                            withdateranges: true,
-                            details: true,
-                            hotlist: false,
-                            studies: ["Volume@tv-basicstudies"],
-                            watchlist: ["OANDA:EURUSD","OANDA:GBPUSD","OANDA:XAUUSD","BINANCE:BTCUSDT","BINANCE:ETHUSDT","NASDAQ:NDX","TVC:DJI","SP:SPX"],
-                            container_id: containerIdRef.current,
-                        });
-                        setStatus("ready");
-                    } catch (err) {
-                        console.error("TradingView widget error:", err);
-                        setStatus("error");
-                    }
-                }).catch(() => { if (!cancelled) setStatus("error"); });
+                    if (!host.querySelector("iframe")) setStatus("error");
+                    else setStatus("ready");
+                }, 8000);
+
+                // Detect iframe insertion to clear loading state immediately
+                const mo = new MutationObserver(() => {
+                    if (cancelled) return;
+                    if (host.querySelector("iframe")) { setStatus("ready"); }
+                });
+                mo.observe(host, { childList: true, subtree: true });
 
                 return () => {
                     cancelled = true;
-                    const el = document.getElementById(containerIdRef.current);
-                    if (el) el.innerHTML = "";
+                    if (timeoutId) clearTimeout(timeoutId);
+                    try { mo.disconnect(); } catch {}
+                    if (host) host.innerHTML = "";
                 };
             }, [symbol, interval, theme, locale]);
 
             return (
                 <div className="relative" style={{ height }}>
-                    <div id={containerIdRef.current} className="absolute inset-0 rounded-2xl overflow-hidden" />
+                    <div ref={hostRef} className="absolute inset-0 rounded-2xl overflow-hidden" />
                     {status === "loading" && (
                         <div className="absolute inset-0 grid place-items-center rounded-2xl bg-[#05070D]/85 text-slate-300">
                             <div className="flex flex-col items-center gap-3">
