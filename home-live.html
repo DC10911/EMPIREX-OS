@@ -4309,22 +4309,68 @@
                 window.location.assign(`./module-under-construction.html?section=${section}`);
             }
 
+            const inlineSections = ["בית","יומן","מסחר","אוטומציה","AI Agent","שווקים","הגדרות"];
+            const languages = Object.keys(TRANSLATIONS || {});
+
+            function toCanonicalSection(sectionLabel) {
+                const label = String(sectionLabel || "").trim();
+                if (!label) return "בית";
+                if (inlineSections.includes(label)) return label;
+
+                for (const [canonical, key] of Object.entries(NAV_T_KEY || {})) {
+                    for (const lg of languages) {
+                        if (TRANSLATIONS?.[lg]?.[key] === label) return canonical;
+                    }
+                }
+                return label;
+            }
+
+            const connectBrokerLabels = new Set([
+                "חבר ברוקר",
+                ...languages.map((lg) => TRANSLATIONS?.[lg]?.connect_broker).filter(Boolean),
+            ]);
+            const activateAiLabels = new Set([
+                ...languages.map((lg) => TRANSLATIONS?.[lg]?.activate_ai).filter(Boolean),
+            ]);
+            const riskEngineLabels = new Set([
+                ...languages.map((lg) => TRANSLATIONS?.[lg]?.risk_engine).filter(Boolean),
+            ]);
+
             function handleNavigate(sectionLabel) {
-                setActiveSection(sectionLabel);
-                const inline = ["בית","יומן","מסחר","אוטומציה","AI Agent","שווקים","הגדרות"];
-                if (inline.includes(sectionLabel)) {
+                const canonical = toCanonicalSection(sectionLabel);
+                setActiveSection(canonical);
+                if (inlineSections.includes(canonical)) {
                     window.scrollTo({ top: 0, behavior: "smooth" });
                 } else {
-                    goToConstructionPage(navMeta[sectionLabel] || sectionLabel);
+                    goToConstructionPage(navMeta[canonical] || canonical);
                 }
             }
 
             function handleAction(sectionLabel) {
-                if (sectionLabel === "חבר ברוקר") {
+                const normalized = String(sectionLabel || "").trim();
+
+                if (connectBrokerLabels.has(normalized)) {
                     setBrokerWizardOpen(true);
                     return;
                 }
-                goToConstructionPage(sectionLabel);
+
+                if (activateAiLabels.has(normalized)) {
+                    handleNavigate("AI Agent");
+                    return;
+                }
+
+                if (riskEngineLabels.has(normalized)) {
+                    handleNavigate("סיכון");
+                    return;
+                }
+
+                const canonical = toCanonicalSection(normalized);
+                if (inlineSections.includes(canonical)) {
+                    handleNavigate(canonical);
+                    return;
+                }
+
+                goToConstructionPage(canonical);
             }
 
             function handleDisconnectBroker() {
