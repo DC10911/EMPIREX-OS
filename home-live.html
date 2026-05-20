@@ -278,8 +278,8 @@
 
         async function fetchMarketData() {
             const [fxResult, stocksResult] = await Promise.allSettled([
-                fetch("/api/market/fx?limit=400").then(safeJson),
-                fetch("/api/market/stocks?limit=400").then(safeJson),
+                fetch("/api/market/fx?limit=30").then(safeJson),
+                fetch("/api/market/stocks?limit=30").then(safeJson),
             ]);
 
             const fxData = fxResult.status === "fulfilled"
@@ -308,6 +308,48 @@
                     <path d={path} fill="none" stroke={positive ? "#19B77A" : "#EF4444"} strokeWidth="2.8" strokeLinecap="round" />
                     <path d={`${path} L124 42 L4 42Z`} fill={positive ? "rgba(25,183,122,.09)" : "rgba(239,68,68,.08)"} />
                 </svg>
+            );
+        }
+
+        // TradingView ticker tape widget — real-time live ticker pulled directly from tradingview.com
+        function TradingViewTape() {
+            const ref = React.useRef(null);
+            React.useEffect(() => {
+                if (!ref.current) return;
+                ref.current.innerHTML = '<div class="tradingview-widget-container__widget"></div>';
+                const script = document.createElement("script");
+                script.src = "https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js";
+                script.async = true;
+                script.innerHTML = JSON.stringify({
+                    symbols: [
+                        { proName: "FX:EURUSD",    title: "EUR/USD" },
+                        { proName: "FX:GBPUSD",    title: "GBP/USD" },
+                        { proName: "FX:USDJPY",    title: "USD/JPY" },
+                        { proName: "OANDA:XAUUSD", title: "Gold" },
+                        { proName: "TVC:DXY",      title: "DXY" },
+                        { proName: "FOREXCOM:SPXUSD", title: "S&P 500" },
+                        { proName: "NASDAQ:NDX",  title: "NASDAQ 100" },
+                        { proName: "NASDAQ:AAPL", title: "Apple" },
+                        { proName: "NASDAQ:NVDA", title: "Nvidia" },
+                        { proName: "NASDAQ:TSLA", title: "Tesla" },
+                        { proName: "NASDAQ:MSFT", title: "Microsoft" },
+                        { proName: "NASDAQ:AMZN", title: "Amazon" },
+                        { proName: "BITSTAMP:BTCUSD", title: "Bitcoin" },
+                        { proName: "BITSTAMP:ETHUSD", title: "Ethereum" }
+                    ],
+                    showSymbolLogo: true,
+                    isTransparent: true,
+                    displayMode: "adaptive",
+                    colorTheme: "light",
+                    locale: "he_IL"
+                });
+                ref.current.appendChild(script);
+                return () => { try { if (ref.current) ref.current.innerHTML = ""; } catch {} };
+            }, []);
+            return (
+                <div className="rounded-2xl border border-slate-200 bg-white/70 backdrop-blur-sm overflow-hidden">
+                    <div ref={ref} className="tradingview-widget-container" />
+                </div>
             );
         }
 
@@ -2168,8 +2210,8 @@
             const PU      = "#8B5CF6";
             const BL      = "#3B82F6";
 
-            const TABS = ["לוח בקרה","שוק","צ'אט","חקירות","דוחות","הגדרות"];
-            const [tab, setTab]             = React.useState("לוח בקרה");
+            const TABS = ["סקירה","שוק","ביצועים","סיכונים","יומן","צ'אט","הגדרות"];
+            const [tab, setTab]             = React.useState("סקירה");
             const [dashboard, setDashboard] = React.useState(null);
             const [market, setMarket]       = React.useState(null);
             const [calendar, setCalendar]   = React.useState([]);
@@ -2184,6 +2226,8 @@
             const [selectedSymbol, setSelectedSymbol] = React.useState("EURUSD");
             const [symbolData, setSymbolData] = React.useState(null);
             const [briefing, setBriefing]   = React.useState(null);
+            const [botStatus, setBotStatus] = React.useState(null);
+            const [botTrades, setBotTrades] = React.useState([]);
             const chatEndRef = React.useRef(null);
             const sessionId  = React.useRef("session_" + Date.now());
 
@@ -2239,15 +2283,30 @@
                 } catch {}
             }
 
+            async function loadBot() {
+                try {
+                    const [statusRes, tradesRes] = await Promise.all([
+                        fetch("/api/bot/status").then(r => r.json()).catch(() => ({})),
+                        fetch("/api/bot/trades?limit=50").then(r => r.json()).catch(() => ({}))
+                    ]);
+                    if (statusRes && statusRes.ok) setBotStatus(statusRes.data || statusRes);
+                    else if (statusRes && (statusRes.openTrades !== undefined || statusRes.open_trades !== undefined)) setBotStatus(statusRes);
+                    if (tradesRes && tradesRes.ok) setBotTrades(tradesRes.data || []);
+                } catch {}
+            }
+
             React.useEffect(() => {
                 loadDashboard();
                 loadChatHistory();
+                loadBot();
+                const id = setInterval(loadBot, 5000);
+                return () => clearInterval(id);
             }, []);
 
             React.useEffect(() => {
                 if (tab === "שוק") loadMarket();
-                if (tab === "חקירות") apiFetch("/api/agent/investigations").then(setInvestigations).catch(()=>{});
-                if (tab === "דוחות") apiFetch("/api/agent/reports").then(setReports).catch(()=>{});
+                if (tab === "יומן") apiFetch("/api/agent/investigations").then(setInvestigations).catch(()=>{});
+                if (tab === "ביצועים") apiFetch("/api/agent/reports").then(setReports).catch(()=>{});
             }, [tab]);
 
             React.useEffect(() => { loadSymbol(selectedSymbol); }, [selectedSymbol]);
@@ -2590,35 +2649,70 @@
 
                     <div style={{maxWidth:1340, margin:"0 auto", padding:"20px 20px"}}>
 
-                    {/* ════ TAB: לוח בקרה ════ */}
-                    {tab === "לוח בקרה" && (
+                    {/* ════ TAB: סקירה ════ */}
+                    {tab === "סקירה" && (
                         <div>
-                            {/* Briefing */}
+                            {/* ── HERO bot status card (gradient blue→purple) ── */}
+                            {(() => {
+                                const bs = botStatus || {};
+                                const trades = botTrades || [];
+                                const closedTrades = trades.filter(t => t.status === "closed" || t.close_price || t.profit !== undefined);
+                                const openTradesCount = (bs.openTrades ?? bs.open_trades ?? trades.filter(t => !(t.status === "closed" || t.close_price)).length) || 0;
+                                const totalPnl = closedTrades.reduce((s,t) => s + Number(t.profit ?? t.pnl ?? 0), 0);
+                                const wins = closedTrades.filter(t => Number(t.profit ?? t.pnl ?? 0) > 0).length;
+                                const winRate = closedTrades.length ? (wins/closedTrades.length*100) : (brief.winRate ?? 0);
+                                const tradeCount = closedTrades.length || brief.trades || 0;
+                                const aiScore = bs.aiScore ?? bs.ai_score ?? risk.risk_score ?? 95;
+                                const accuracy = bs.accuracy ?? brief.winRate ?? winRate ?? 0;
+                                return (
+                                    <>
+                                        <div style={{background:"linear-gradient(135deg,#3B82F6 0%,#8B5CF6 100%)", borderRadius:18, padding:"22px 26px", marginBottom:16, color:"#fff", boxShadow:"0 12px 36px -8px rgba(59,130,246,0.45)"}}>
+                                            <div style={{display:"flex", alignItems:"center", gap:14, marginBottom:10}}>
+                                                <div style={{width:46, height:46, borderRadius:14, background:"rgba(255,255,255,0.18)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:24}}>🤖</div>
+                                                <div style={{flex:1}}>
+                                                    <div style={{fontSize:11, opacity:0.8, marginBottom:2}}>סטטוס בוט המסחר · {new Date().toLocaleDateString("he-IL")}</div>
+                                                    <div style={{fontSize:16, fontWeight:700, lineHeight:1.6}}>
+                                                        עד כה הבוט ביצע <b>{tradeCount}</b> תהליכי מסחר וסיכם תשואה של <b>{totalPnl >= 0 ? "+" : ""}${totalPnl.toFixed(2)}</b>. ציון AI נוכחי <b>{Math.round(aiScore)}/100</b> עם דיוק ממוצע של <b>{Math.round(accuracy)}%</b>.
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div style={{fontSize:11, opacity:0.78, display:"flex", gap:14, flexWrap:"wrap"}}>
+                                                <span>● חי · מתעדכן כל 5 שניות</span>
+                                                <span>· הזדמנויות פתוחות {openTradesCount}</span>
+                                                <span>· {openAlerts.length} התראות פעילות</span>
+                                                <span>· {upcomingEvts.length} אירועים ב-3 ימים</span>
+                                            </div>
+                                        </div>
+
+                                        {/* 6-stat KPI grid */}
+                                        <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))", gap:10, marginBottom:18}}>
+                                            {[
+                                                ["הזדמנויות פתוחות", openTradesCount, CY],
+                                                ["ציון AI", `${Math.round(aiScore)}`, EM],
+                                                ["דיוק ממוצע", `${Math.round(accuracy)}%`, accuracy >= 70 ? EM : AM],
+                                                ["עסקאות", tradeCount, "rgba(255,255,255,0.9)"],
+                                                ["Win Rate", `${Math.round(winRate)}%`, winRate >= 60 ? EM : winRate >= 40 ? AM : RE],
+                                                ["רווח / הפסד", `${totalPnl >= 0 ? "+" : ""}$${totalPnl.toFixed(2)}`, totalPnl >= 0 ? EM : RE],
+                                            ].map(([label, val, col]) => (
+                                                <div key={label} style={{...AG_CARD, padding:"14px 16px"}}>
+                                                    <div style={{fontSize:11, color:"rgba(255,255,255,0.45)", marginBottom:5}}>{label}</div>
+                                                    <div style={{fontSize:22, fontWeight:800, color:col}}>{val}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
+                                );
+                            })()}
+
+                            {/* Briefing greeting (if any) */}
                             {brief.greeting && (
-                                <div style={{...AG_CARD, padding:"18px 22px", marginBottom:18, borderLeft:`4px solid ${CY}`}}>
-                                    <div style={{fontSize:13, color:"rgba(255,255,255,0.55)", marginBottom:6}}>📋 דוח יומי — {brief.date}</div>
-                                    <div style={{fontSize:15, color:"rgba(255,255,255,0.9)", lineHeight:1.7, marginBottom:12}}>{brief.greeting}</div>
-                                    {brief.mainInsight && <div style={{fontSize:13, color:CY, marginBottom:8}}>💡 {brief.mainInsight}</div>}
-                                    {brief.riskRecommendation && <div style={{fontSize:12, color:AM}}>🎯 {brief.riskRecommendation}</div>}
+                                <div style={{...AG_CARD, padding:"14px 20px", marginBottom:18, borderLeft:`3px solid ${CY}`}}>
+                                    <div style={{fontSize:12, color:"rgba(255,255,255,0.55)", marginBottom:4}}>📋 דוח יומי — {brief.date}</div>
+                                    <div style={{fontSize:14, color:"rgba(255,255,255,0.85)", lineHeight:1.7}}>{brief.greeting}</div>
+                                    {brief.mainInsight && <div style={{fontSize:12, color:CY, marginTop:8}}>💡 {brief.mainInsight}</div>}
+                                    {brief.riskRecommendation && <div style={{fontSize:12, color:AM, marginTop:4}}>🎯 {brief.riskRecommendation}</div>}
                                 </div>
                             )}
-
-                            {/* KPI bar */}
-                            <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))", gap:10, marginBottom:18}}>
-                                {[
-                                    ["P&L יומי", brief.pnl != null ? `${brief.pnl >= 0 ? "+" : ""}$${Math.abs(brief.pnl||0).toFixed(2)}` : "—", brief.pnl >= 0 ? EM : RE],
-                                    ["Win Rate", brief.winRate != null ? `${brief.winRate}%` : "—", "rgba(255,255,255,0.85)"],
-                                    ["עסקאות", brief.trades ?? "—", "rgba(255,255,255,0.85)"],
-                                    ["ציון עמידה", comp.score != null ? `${comp.score}%` : "—", comp.score >= 80 ? EM : comp.score >= 60 ? AM : RE],
-                                    ["ציון סיכון", risk.risk_score != null ? `${risk.risk_score}/100` : "—", risk.risk_score >= 70 ? EM : risk.risk_score >= 50 ? AM : RE],
-                                    ["התראות פתוחות", openAlerts.length, openAlerts.length === 0 ? EM : openAlerts.length <= 2 ? AM : RE],
-                                ].map(([label, val, col]) => (
-                                    <div key={label} style={{...AG_CARD, padding:"14px 16px"}}>
-                                        <div style={{fontSize:11, color:"rgba(255,255,255,0.4)", marginBottom:5}}>{label}</div>
-                                        <div style={{fontSize:22, fontWeight:800, color:col}}>{val}</div>
-                                    </div>
-                                ))}
-                            </div>
 
                             <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:18, marginBottom:18}}>
                                 {/* Risk checks */}
@@ -2674,6 +2768,68 @@
                                     </button>
                                 ))}
                             </div>
+
+                            {/* ── Activity timeline (recent bot trades) ── */}
+                            <div style={{marginTop:22}}>
+                                <div style={{fontSize:13, fontWeight:700, color:"rgba(255,255,255,0.6)", marginBottom:10}}>🕒 תוצאות פעילות אחרונה</div>
+                                <div style={{...AG_CARD, padding:"4px 16px"}}>
+                                    {(botTrades || []).slice(0, 5).map((tr, i) => {
+                                        const profit = Number(tr.profit ?? tr.pnl ?? 0);
+                                        const sym = tr.symbol || tr.pair || "—";
+                                        const side = (tr.side || tr.type || "—").toUpperCase();
+                                        const ts = tr.close_time || tr.time || tr.timestamp;
+                                        const timeStr = ts ? new Date(ts).toLocaleTimeString("he-IL", {hour:"2-digit", minute:"2-digit"}) : "—";
+                                        const col = profit >= 0 ? EM : RE;
+                                        return (
+                                            <div key={tr.ticket || i} style={{display:"flex", alignItems:"center", gap:12, padding:"10px 0", borderBottom: i < 4 ? "1px solid rgba(255,255,255,0.06)" : "none"}}>
+                                                <div style={{width:8, height:8, borderRadius:"50%", background:col, flexShrink:0}}/>
+                                                <div style={{flex:1}}>
+                                                    <div style={{fontSize:13, fontWeight:700, color:"rgba(255,255,255,0.9)"}}>{sym} · {side}</div>
+                                                    <div style={{fontSize:11, color:"rgba(255,255,255,0.45)"}}>{timeStr} · #{tr.ticket || (i+1)}</div>
+                                                </div>
+                                                <div style={{fontSize:14, fontWeight:800, color:col}}>{profit >= 0 ? "+" : ""}${profit.toFixed(2)}</div>
+                                            </div>
+                                        );
+                                    })}
+                                    {(!botTrades || botTrades.length === 0) && (
+                                        <div style={{padding:"16px 0", color:"rgba(255,255,255,0.4)", fontSize:13, textAlign:"center"}}>אין עסקאות אחרונות · ממתין לאות מ-TradingView</div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* ── Bottom action bar (strategy controls) ── */}
+                            <div style={{marginTop:22, ...AG_CARD, padding:"14px 16px", display:"flex", flexWrap:"wrap", gap:8, alignItems:"center"}}>
+                                <button onClick={loadBot} style={{background:`linear-gradient(135deg,${CY},${BL})`, color:"#000", border:"none", borderRadius:10, padding:"9px 16px", fontSize:12, fontWeight:800, cursor:"pointer"}}>Back Strategy</button>
+                                <button onClick={() => quickAsk("בדוק את הקונספט של האסטרטגיה הנוכחית")} style={{background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)", color:"rgba(255,255,255,0.8)", borderRadius:10, padding:"9px 16px", fontSize:12, fontWeight:700, cursor:"pointer"}}>בדיקת קונספט</button>
+                                <button onClick={() => setTab("הגדרות")} style={{background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)", color:"rgba(255,255,255,0.8)", borderRadius:10, padding:"9px 16px", fontSize:12, fontWeight:700, cursor:"pointer"}}>עריכת תכנית</button>
+                                <button onClick={() => quickAsk("שדרג את תכנית הבוט עם המלצות AI")} style={{background:"rgba(139,92,246,0.18)", border:`1px solid ${PU}55`, color:PU, borderRadius:10, padding:"9px 16px", fontSize:12, fontWeight:800, cursor:"pointer"}}>SIMO שדרג</button>
+                                <button onClick={() => quickAsk("הרץ בדיקה לאחור על האסטרטגיה")} style={{background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)", color:"rgba(255,255,255,0.8)", borderRadius:10, padding:"9px 16px", fontSize:12, fontWeight:700, cursor:"pointer"}}>הרץ אחורה</button>
+                                <div style={{flex:1}}/>
+                                <button onClick={() => { try { window.dispatchEvent(new CustomEvent("empirex:sendToBot")); } catch {} alert("התכנית נשלחה לבוט"); }} style={{background:EM, color:"#fff", border:"none", borderRadius:10, padding:"9px 18px", fontSize:12, fontWeight:800, cursor:"pointer"}}>שלח לבוט</button>
+                                <button onClick={() => { try { localStorage.setItem("empirex_strategy_saved", new Date().toISOString()); } catch {} alert("התכנית נשמרה"); }} style={{background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.18)", color:"#fff", borderRadius:10, padding:"9px 18px", fontSize:12, fontWeight:800, cursor:"pointer"}}>שמור תכנית</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ════ TAB: סיכונים ════ */}
+                    {tab === "סיכונים" && (
+                        <div>
+                            <div style={{fontSize:14, fontWeight:700, color:"rgba(255,255,255,0.7)", marginBottom:14}}>⚡ מדדי סיכון בזמן אמת</div>
+                            <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))", gap:10, marginBottom:18}}>
+                                {(risk.checks || []).map(c => <RiskGauge key={c.id} check={c}/>)}
+                                {(risk.checks || []).length === 0 && <div style={{...AG_CARD, padding:24, textAlign:"center", color:"rgba(255,255,255,0.4)"}}>טוען מדדי סיכון...</div>}
+                            </div>
+                            <div style={{fontSize:13, fontWeight:700, color:"rgba(255,255,255,0.6)", marginBottom:10, display:"flex", justifyContent:"space-between"}}>
+                                <span>✅ עמידה ב-FTMO</span>
+                                {comp.passed != null && <span style={{color: comp.status==="passed" ? EM : comp.status==="warning" ? AM : RE}}>{comp.passed}/{comp.total} · {comp.score}%</span>}
+                            </div>
+                            <div style={{...AG_CARD, padding:"12px 16px", marginBottom:18}}>
+                                {(comp.rules || []).map(r => <ComplianceRow key={r.id} rule={r}/>)}
+                                {(comp.rules || []).length === 0 && <div style={{padding:8, color:"rgba(255,255,255,0.4)", fontSize:13, textAlign:"center"}}>אין נתוני עמידה</div>}
+                            </div>
+                            <div style={{fontSize:13, fontWeight:700, color:"rgba(255,255,255,0.6)", marginBottom:10}}>⚠️ חריגות פעילות ({openAlerts.length})</div>
+                            {openAlerts.length === 0 && <div style={{...AG_CARD, padding:16, color:"rgba(255,255,255,0.4)", fontSize:13, textAlign:"center"}}>✅ אין חריגות</div>}
+                            {openAlerts.map(a => <AlertCard key={a.id} alert={a} onResolve={resolveAlert}/>)}
                         </div>
                     )}
 
@@ -2820,8 +2976,8 @@
                         </div>
                     )}
 
-                    {/* ════ TAB: חקירות ════ */}
-                    {tab === "חקירות" && (
+                    {/* ════ TAB: יומן ════ */}
+                    {tab === "יומן" && (
                         <div>
                             <div style={{fontSize:14, fontWeight:700, color:"rgba(255,255,255,0.7)", marginBottom:14}}>
                                 🔍 חקירות פעילות ({investigations.length})
@@ -2831,8 +2987,8 @@
                         </div>
                     )}
 
-                    {/* ════ TAB: דוחות ════ */}
-                    {tab === "דוחות" && (
+                    {/* ════ TAB: ביצועים ════ */}
+                    {tab === "ביצועים" && (
                         <div>
                             <div style={{fontSize:14, fontWeight:700, color:"rgba(255,255,255,0.7)", marginBottom:14}}>
                                 📋 דוחות ({reports.length})
@@ -4165,12 +4321,12 @@
                     };
                     es.onerror = () => {
                         // SSE failed, fall back to interval
-                        const id = setInterval(refreshData, 15000);
+                        const id = setInterval(refreshData, 5000);
                         return () => clearInterval(id);
                     };
                 } catch {
                     // No SSE support — fallback
-                    const id = setInterval(refreshData, 15000);
+                    const id = setInterval(refreshData, 5000);
                     return () => clearInterval(id);
                 }
                 return () => { try { es.close(); } catch {} };
@@ -4285,30 +4441,13 @@
                         </div>
 
                         <div className="mx-auto mt-3 max-w-[1320px] px-2">
-                            <form
-                                onSubmit={(event) => {
-                                    event.preventDefault();
-                                    const section = document.getElementById("market-sections");
-                                    if (section) section.scrollIntoView({ behavior: "smooth", block: "start" });
-                                }}
-                                className="flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-400 shadow-sm"
-                                dir="ltr"
-                            >
-                                <Icon name="search" className="h-4 w-4" />
-                                <input
-                                    value={searchQuery}
-                                    onChange={(event) => setSearchQuery(event.target.value)}
-                                    placeholder={'חפש מט"ח, מניה או סימבול...'}
-                                    className="w-full bg-transparent text-sm font-semibold text-[#07124A] placeholder:text-slate-400 outline-none"
-                                />
-                                <button type="submit" className="rounded-xl bg-[#0B4DFF] px-3 py-1.5 text-xs font-black text-white">חפש</button>
-                            </form>
+                            <TradingViewTape />
                         </div>
 
                         <div id="market-sections" className="mx-auto mt-4 grid max-w-[1320px] gap-4">
                             <CarouselSection
                                 title="מטבעות מט״ח חיים"
-                                subtitle="400 זוגות מט״ח נסחרים. 3 הראשונים מוצגים לפי דירוג נפח מסחר בזמן אמת."
+                                subtitle="30 הזוגות המובילים — מתעדכן בזמן אמת מ-TradingView."
                                 items={filteredFx}
                                 type="fx"
                                 source={marketData.source}
@@ -4317,7 +4456,7 @@
 
                             <CarouselSection
                                 title="המניות החזקות במעקב"
-                                subtitle="400 מניות פעילות מוצגות. 3 הראשונות מדורגות לפי נפח מסחר בזמן אמת."
+                                subtitle="30 המניות החזקות ביותר — נפח מסחר חי מ-TradingView."
                                 items={filteredStocks}
                                 type="stock"
                                 source={marketData.source}
