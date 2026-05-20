@@ -2888,14 +2888,14 @@
         // TODO: Connect Signal Engine to a real /api/signals/tradingview webhook from the EMPIREX Pine indicator.
         // ════════════════════════════════════════════════════════════════════════
         const TRADING_SYMBOLS = [
-            { label:"EUR/USD",  value:"OANDA:EURUSD",     assetClass:"Forex",  precision:5 },
-            { label:"GBP/USD",  value:"OANDA:GBPUSD",     assetClass:"Forex",  precision:5 },
-            { label:"Gold",     value:"OANDA:XAUUSD",     assetClass:"Metals", precision:2 },
+            { label:"EUR/USD",  value:"FX:EURUSD",        assetClass:"Forex",  precision:5 },
+            { label:"GBP/USD",  value:"FX:GBPUSD",        assetClass:"Forex",  precision:5 },
+            { label:"Gold",     value:"TVC:GOLD",         assetClass:"Metals", precision:2 },
             { label:"BTC/USDT", value:"BINANCE:BTCUSDT",  assetClass:"Crypto", precision:2 },
             { label:"ETH/USDT", value:"BINANCE:ETHUSDT",  assetClass:"Crypto", precision:2 },
-            { label:"NAS100",   value:"NASDAQ:NDX",       assetClass:"Index",  precision:2 },
+            { label:"NAS100",   value:"NASDAQ:QQQ",       assetClass:"Index",  precision:2 },
             { label:"US30",     value:"TVC:DJI",          assetClass:"Index",  precision:2 },
-            { label:"SPX500",   value:"SP:SPX",           assetClass:"Index",  precision:2 },
+            { label:"SPX500",   value:"AMEX:SPY",         assetClass:"Index",  precision:2 },
         ];
         const TRADING_TIMEFRAMES = [
             { label:"1m",  value:"1"   },
@@ -2933,7 +2933,7 @@
         }
 
         // TradingView Widget — Stable iframe embed (prevents script re-injection flicker/jumps)
-        function TradingViewChart({ symbol = "OANDA:EURUSD", interval = "5", theme = "dark", locale = "en", height = 560 }) {
+        const TradingViewChart = React.memo(function TradingViewChart({ symbol = "FX:EURUSD", interval = "5", theme = "dark", locale = "en", height = 560 }) {
             const [status, setStatus] = React.useState("loading"); // loading | ready | error
             const iframeSrc = React.useMemo(() => {
                 const p = new URLSearchParams({
@@ -2987,10 +2987,10 @@
                     )}
                 </div>
             );
-        }
+        });
 
         function TradingSection() {
-            const [symbol, setSymbol]         = React.useState("OANDA:EURUSD");
+            const [symbol, setSymbol]         = React.useState("FX:EURUSD");
             const [interval, setInterval]     = React.useState("5");
             const [now, setNow]               = React.useState(new Date());
             const [entry, setEntry]           = React.useState("");
