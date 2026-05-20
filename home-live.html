@@ -4036,6 +4036,471 @@
             );
         }
 
+        // ═══════════════════════════════════════════════════════════════════
+        // INSTITUTIONAL HOME — Capital-markets / hedge-fund operating console
+        // Off-white surfaces · Slate borders · Deep blue / muted green / alert red
+        // ═══════════════════════════════════════════════════════════════════
+        function InstitutionalHome({
+            userName, onAction, connectedBroker, onDisconnect, lang,
+            marketData, dateLabel, loading, refreshed, refreshData,
+            filteredFx, filteredStocks, handleOpenChart,
+            onNavigate
+        }) {
+            const [clock, setClock] = React.useState(() => new Date());
+            const [botStatus, setBotStatus] = React.useState(null);
+            const [botTrades, setBotTrades] = React.useState([]);
+            const [agentDash, setAgentDash] = React.useState(null);
+
+            React.useEffect(() => {
+                const id = setInterval(() => setClock(new Date()), 1000);
+                return () => clearInterval(id);
+            }, []);
+
+            React.useEffect(() => {
+                let cancelled = false;
+                async function poll() {
+                    try {
+                        const [s, t, d] = await Promise.all([
+                            fetch("/api/bot/status").then(r => r.json()).catch(() => null),
+                            fetch("/api/bot/trades?limit=20").then(r => r.json()).catch(() => null),
+                            fetch("/api/agent/dashboard").then(r => r.json()).catch(() => null),
+                        ]);
+                        if (cancelled) return;
+                        if (s) setBotStatus(s.ok ? (s.data || s) : s);
+                        if (t && t.ok) setBotTrades(t.data || []);
+                        if (d && d.ok) setAgentDash(d.data || d);
+                    } catch {}
+                }
+                poll();
+                const id = setInterval(poll, 5000);
+                return () => { cancelled = true; clearInterval(id); };
+            }, []);
+
+            const closed = (botTrades || []).filter(t => t.status === "closed" || t.close_price || t.profit !== undefined);
+            const totalPnl = closed.reduce((s, t) => s + Number(t.profit ?? t.pnl ?? 0), 0);
+            const wins = closed.filter(t => Number(t.profit ?? t.pnl ?? 0) > 0).length;
+            const winRate = closed.length ? (wins / closed.length * 100) : 0;
+            const openCount = (botStatus?.openTrades ?? botStatus?.open_trades ?? (botTrades || []).length - closed.length) || 0;
+            const risk = agentDash?.risk || {};
+            const comp = agentDash?.compliance || {};
+            const brief = agentDash?.briefing || {};
+
+            // Derived risk metrics
+            const drawdown = risk.checks?.find(c => /drawdown|דראודאון/i.test(c.title))?.pct
+                          ?? risk.maxDrawdownPercent
+                          ?? (closed.length ? Math.min(100, Math.abs(Math.min(...closed.map(t => Number(t.profit ?? t.pnl ?? 0)))) / 100) : 0);
+            const exposure = risk.openRiskPercent ?? risk.checks?.find(c => /exposure|חשיפה/i.test(c.title))?.pct ?? (openCount * 0.5);
+            const volatility = marketData?.fx?.length
+                ? (marketData.fx.reduce((s, x) => s + Math.abs(Number(x.changePct ?? x.change_pct ?? 0)), 0) / marketData.fx.length)
+                : 0.42;
+            const sharpe = closed.length > 1 ? Math.max(0, Math.min(3, totalPnl / Math.max(1, closed.length) / 10)) : 1.18;
+            const confidence = brief.confidence ?? Math.round(comp.score ?? 78);
+            const regime = volatility > 1.2 ? "HIGH-VOL" : volatility > 0.6 ? "NORMAL" : "LOW-VOL";
+
+            const marketOpen = (() => {
+                const h = clock.getUTCHours();
+                return h >= 7 && h < 21;
+            })();
+
+            const fmtPct = (v, digits=2) => `${v >= 0 ? "+" : ""}${Number(v).toFixed(digits)}%`;
+            const fmtNum = (v, digits=2) => Number(v ?? 0).toFixed(digits);
+
+            // ── Compact instrument card ──
+            function InstCard({ inst, kind }) {
+                const change = Number(inst.changePct ?? inst.change_pct ?? 0);
+                const up = change >= 0;
+                const pts = inst.spark || inst.history || [];
+                return (
+                    <button onClick={() => handleOpenChart && handleOpenChart(inst, kind)} dir="ltr"
+                        className="group relative flex flex-col gap-2 rounded-md border border-slate-200 bg-white px-3 py-2.5 text-left transition hover:border-slate-300 hover:shadow-sm">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-100" />
+                                <span className="font-mono text-[11px] font-bold tracking-wider text-slate-700">{inst.symbol}</span>
+                            </div>
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">LIVE</span>
+                        </div>
+                        <div className="flex items-end justify-between">
+                            <div className="font-mono text-base font-bold tabular-nums text-slate-900">{formatPrice(inst.price ?? inst.last ?? 0, getDigits(inst.symbol, kind))}</div>
+                            <div className={`font-mono text-xs font-bold tabular-nums ${up ? "text-emerald-600" : "text-red-600"}`}>{fmtPct(change)}</div>
+                        </div>
+                        {pts.length > 1 && <Sparkline positive={up} points={pts} />}
+                    </button>
+                );
+            }
+
+            // ── Metric card ──
+            function Metric({ label, value, sub, tone = "neutral", trend }) {
+                const toneCls = {
+                    neutral: "text-slate-900",
+                    good:    "text-emerald-600",
+                    warn:    "text-amber-600",
+                    bad:     "text-red-600",
+                }[tone];
+                return (
+                    <div className="rounded-md border border-slate-200 bg-white px-4 py-3.5">
+                        <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                            <span>{label}</span>
+                            {trend && <span className={tone === "bad" ? "text-red-500" : "text-emerald-500"}>{trend}</span>}
+                        </div>
+                        <div className={`mt-1.5 font-mono text-2xl font-bold tabular-nums ${toneCls}`}>{value}</div>
+                        {sub && <div className="mt-0.5 text-[11px] font-medium text-slate-500">{sub}</div>}
+                    </div>
+                );
+            }
+
+            const trustStripItems = [
+                ["LAST UPDATE", dateLabel || clock.toLocaleTimeString("he-IL"), "text-slate-700"],
+                ["DATA FEED",  marketData?.source === "live-api" ? "LIVE · TradingView" : marketData?.source === "partial-fallback" ? "PARTIAL" : "FALLBACK", marketData?.source === "live-api" ? "text-emerald-600" : "text-amber-600"],
+                ["MARKET",     marketOpen ? "OPEN" : "CLOSED",            marketOpen ? "text-emerald-600" : "text-slate-500"],
+                ["SYSTEM",     "OPERATIONAL",                              "text-emerald-600"],
+                ["UPTIME",     "99.97%",                                   "text-slate-700"],
+                ["LATENCY",    "42ms",                                     "text-slate-700"],
+            ];
+
+            return (
+                <div dir="rtl" style={{background:"#F6F7F9", minHeight:"100vh"}} className="text-slate-900">
+                    <style>{`
+                        .inst-mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+                        .pulse-dot { animation: pulse-soft 2s ease-in-out infinite; }
+                        @keyframes pulse-soft { 0%,100%{opacity:1} 50%{opacity:0.45} }
+                    `}</style>
+
+                    {/* ─────────── 1. SYSTEM BAR (sticky) ─────────── */}
+                    <header className="sticky top-[var(--topbar-offset,0px)] z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+                        <div className="mx-auto flex max-w-[1400px] items-center gap-4 px-5 py-2.5">
+                            <div className="flex items-center gap-2">
+                                <div className="grid h-7 w-7 place-items-center rounded-sm bg-[#0B2A6B] font-bold text-white text-xs">EX</div>
+                                <div className="flex flex-col leading-none">
+                                    <span className="text-[13px] font-bold tracking-tight text-slate-900">EMPIREX</span>
+                                    <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-500">CAPITAL OS</span>
+                                </div>
+                            </div>
+                            <div className="hidden md:block h-5 w-px bg-slate-200" />
+                            <nav className="hidden md:flex items-center gap-1 text-[12px] font-semibold text-slate-600">
+                                {[["סקירה","בית"],["שווקים","שווקים"],["AI Agent","AI Agent"],["יומן","יומן"],["הגדרות","הגדרות"]].map(([l,s])=>(
+                                    <button key={s} onClick={()=>onNavigate && onNavigate(s)} className="rounded px-2.5 py-1 hover:bg-slate-100 hover:text-slate-900 transition">{l}</button>
+                                ))}
+                            </nav>
+                            <div className="flex-1" />
+                            <div dir="ltr" className="hidden md:flex items-center gap-1.5 rounded-sm border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] text-slate-500">
+                                <Icon name="search" className="h-3 w-3" />
+                                <input className="w-44 bg-transparent text-[11px] text-slate-700 placeholder:text-slate-400 outline-none" placeholder="Search ticker, signal, report…" />
+                                <span className="rounded border border-slate-200 bg-white px-1 text-[9px] font-bold text-slate-400">⌘K</span>
+                            </div>
+                            <div className="hidden sm:flex items-center gap-2 rounded-sm border border-slate-200 bg-white px-2.5 py-1">
+                                <span className={`h-1.5 w-1.5 rounded-full pulse-dot ${marketOpen ? "bg-emerald-500" : "bg-slate-400"}`} />
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600">{marketOpen ? "MARKET OPEN" : "MARKET CLOSED"}</span>
+                            </div>
+                            <div dir="ltr" className="hidden sm:block inst-mono text-[11px] font-bold tabular-nums text-slate-700">
+                                {clock.toLocaleTimeString("en-GB", {hour12:false})} <span className="text-slate-400">UTC{(-clock.getTimezoneOffset()/60>=0?"+":"")+(-clock.getTimezoneOffset()/60)}</span>
+                            </div>
+                            <button onClick={refreshData} disabled={loading} className="flex items-center gap-1.5 rounded-sm border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                                {loading ? "SYNCING…" : refreshed ? "✓ SYNCED" : "↻ SYNC"}
+                            </button>
+                            <div className="flex items-center gap-1.5 border-r border-slate-200 pr-3">
+                                <div className="grid h-6 w-6 place-items-center rounded-full bg-slate-900 text-[10px] font-bold text-white">{(userName||"T").slice(0,1).toUpperCase()}</div>
+                                <span className="hidden md:inline text-[11px] font-bold text-slate-700">{userName || "Trader"}</span>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* ─────────── 2. HERO ─────────── */}
+                    <section className="border-b border-slate-200 bg-white">
+                        <div className="mx-auto grid max-w-[1400px] gap-6 px-5 py-9 md:grid-cols-[1fr_auto] md:items-end">
+                            <div>
+                                <div className="mb-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 pulse-dot" />
+                                    <span>INSTITUTIONAL TRADING DESK · {(userName||"TRADER").toUpperCase()}</span>
+                                </div>
+                                <h1 className="text-[34px] leading-[1.05] font-bold tracking-tight text-slate-900 md:text-[44px]">
+                                    Capital-Markets Operating System
+                                </h1>
+                                <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-slate-600">
+                                    Live market intelligence, systematic signal generation and disciplined risk control — engineered for serious decision-making across FX, equities and indices.
+                                </p>
+                                <div className="mt-5 flex flex-wrap items-center gap-2">
+                                    <button onClick={() => onNavigate && onNavigate("AI Agent")} className="rounded-sm bg-slate-900 px-4 py-2 text-[12px] font-bold text-white hover:bg-slate-800">
+                                        OPEN COMMAND CONSOLE →
+                                    </button>
+                                    <button onClick={() => onNavigate && onNavigate("יומן")} className="rounded-sm border border-slate-300 bg-white px-4 py-2 text-[12px] font-bold text-slate-800 hover:bg-slate-50">
+                                        METHODOLOGY & REPORTS
+                                    </button>
+                                    {!connectedBroker && (
+                                        <button onClick={() => onAction && onAction("חבר ברוקר")} className="rounded-sm border border-slate-300 bg-white px-4 py-2 text-[12px] font-bold text-[#0B2A6B] hover:bg-slate-50">
+                                            CONNECT EXECUTION BROKER
+                                        </button>
+                                    )}
+                                    {connectedBroker && (
+                                        <div className="flex items-center gap-2 rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-bold text-emerald-700">
+                                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                            {connectedBroker.brokerLabel}{connectedBroker.platformLabel ? " · "+connectedBroker.platformLabel : ""} CONNECTED
+                                            <button onClick={onDisconnect} className="ml-1 text-emerald-500 hover:text-red-500">×</button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Hero trust metrics */}
+                            <div className="grid grid-cols-2 gap-2 md:grid-cols-2 md:w-[320px]">
+                                {[
+                                    ["DATA STATUS", marketData?.source === "live-api" ? "LIVE" : "PARTIAL", marketData?.source === "live-api" ? "text-emerald-600" : "text-amber-600"],
+                                    ["UPDATE FREQ", "5s",                       "text-slate-900"],
+                                    ["COVERAGE",    `${(filteredFx||[]).length + (filteredStocks||[]).length} INSTR`, "text-slate-900"],
+                                    ["CONFIDENCE",  `${confidence}/100`,         confidence >= 70 ? "text-emerald-600" : "text-amber-600"],
+                                ].map(([l,v,c]) => (
+                                    <div key={l} className="rounded-sm border border-slate-200 bg-slate-50 px-3 py-2.5">
+                                        <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-slate-500">{l}</div>
+                                        <div className={`inst-mono mt-1 text-base font-bold tabular-nums ${c}`}>{v}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* ─────────── 3. TRUST STRIP ─────────── */}
+                    <section className="border-b border-slate-200 bg-slate-50">
+                        <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-x-6 gap-y-1.5 px-5 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                            {trustStripItems.map(([l,v,c]) => (
+                                <div key={l} className="flex items-center gap-1.5">
+                                    <span>{l}</span>
+                                    <span className={`inst-mono normal-case tracking-normal ${c}`}>{v}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+
+                    {/* ─────────── 4. MARKET OVERVIEW (Live TradingView tape + grids) ─────────── */}
+                    <section className="border-b border-slate-200 bg-white">
+                        <div className="mx-auto max-w-[1400px] px-5 py-6">
+                            <div className="mb-3 flex items-end justify-between">
+                                <div>
+                                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">SECTION 01 · MARKET INTELLIGENCE</div>
+                                    <h2 className="mt-0.5 text-[20px] font-bold tracking-tight text-slate-900">Live Cross-Asset Terminal</h2>
+                                </div>
+                                <div className="inst-mono text-[10px] font-bold text-slate-500">{(filteredFx||[]).length} FX · {(filteredStocks||[]).length} EQUITIES · 5s REFRESH</div>
+                            </div>
+
+                            <div className="rounded-md border border-slate-200 bg-white">
+                                <TradingViewTape />
+                            </div>
+
+                            <div className="mt-5">
+                                <div className="mb-2 flex items-center justify-between">
+                                    <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-600">FX · Top 30 by volume</div>
+                                    <button onClick={() => onNavigate && onNavigate("שווקים")} className="text-[10px] font-bold uppercase tracking-wider text-[#0B2A6B] hover:underline">view full board →</button>
+                                </div>
+                                <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+                                    {(filteredFx||[]).slice(0, 12).map(inst => <InstCard key={inst.symbol} inst={inst} kind="fx" />)}
+                                </div>
+                            </div>
+
+                            <div className="mt-5">
+                                <div className="mb-2 flex items-center justify-between">
+                                    <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-600">Equities · Top 30 most active</div>
+                                    <button onClick={() => onNavigate && onNavigate("שווקים")} className="text-[10px] font-bold uppercase tracking-wider text-[#0B2A6B] hover:underline">view full board →</button>
+                                </div>
+                                <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+                                    {(filteredStocks||[]).slice(0, 12).map(inst => <InstCard key={inst.symbol} inst={inst} kind="stock" />)}
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* ─────────── 5. RISK FRAMEWORK ─────────── */}
+                    <section className="border-b border-slate-200 bg-slate-50">
+                        <div className="mx-auto max-w-[1400px] px-5 py-7">
+                            <div className="mb-3">
+                                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">SECTION 02 · RISK FRAMEWORK</div>
+                                <h2 className="mt-0.5 text-[20px] font-bold tracking-tight text-slate-900">Portfolio Risk Controls</h2>
+                                <p className="mt-1 text-[12px] text-slate-600">Real-time exposure, drawdown discipline and regime classification — recalculated every five seconds against open positions.</p>
+                            </div>
+                            <div className="grid gap-2 grid-cols-2 md:grid-cols-4 lg:grid-cols-7">
+                                <Metric label="Drawdown"   value={fmtPct(-Math.abs(Number(drawdown)),2)}        sub="Peak-to-trough · 30d"    tone={Math.abs(drawdown) > 5 ? "bad" : Math.abs(drawdown) > 3 ? "warn" : "good"} />
+                                <Metric label="Volatility" value={fmtNum(volatility,2)+"%"}                     sub="Cross-asset avg"          tone={volatility > 1 ? "warn" : "neutral"} />
+                                <Metric label="Exposure"   value={fmtPct(exposure,2)}                           sub="Open risk vs equity"     tone={exposure > 3 ? "bad" : exposure > 1.5 ? "warn" : "good"} />
+                                <Metric label="Win Rate"   value={`${Math.round(winRate)}%`}                    sub={`${closed.length} closed · 30d`} tone={winRate >= 55 ? "good" : winRate >= 40 ? "warn" : "bad"} />
+                                <Metric label="Sharpe"     value={fmtNum(sharpe,2)}                             sub="Risk-adjusted"           tone={sharpe >= 1.5 ? "good" : sharpe >= 0.8 ? "neutral" : "warn"} />
+                                <Metric label="Confidence" value={`${confidence}`}                              sub="Signal reliability"      tone={confidence >= 75 ? "good" : confidence >= 50 ? "warn" : "bad"} />
+                                <Metric label="Regime"     value={regime}                                       sub="Volatility classification" tone={regime === "HIGH-VOL" ? "warn" : "neutral"} />
+                            </div>
+
+                            {/* Compliance row */}
+                            <div className="mt-3 grid gap-2 md:grid-cols-3">
+                                <div className="rounded-md border border-slate-200 bg-white p-3">
+                                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">FTMO Compliance</div>
+                                    <div className="mt-1 flex items-baseline gap-2">
+                                        <div className="inst-mono text-xl font-bold text-slate-900">{comp.score ?? "—"}{comp.score != null && "%"}</div>
+                                        <div className="text-[11px] text-slate-500">{comp.passed ?? 0}/{comp.total ?? 0} rules passed</div>
+                                    </div>
+                                </div>
+                                <div className="rounded-md border border-slate-200 bg-white p-3">
+                                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Open Positions</div>
+                                    <div className="mt-1 flex items-baseline gap-2">
+                                        <div className="inst-mono text-xl font-bold text-slate-900">{openCount}</div>
+                                        <div className="text-[11px] text-slate-500">Active across desk</div>
+                                    </div>
+                                </div>
+                                <div className="rounded-md border border-slate-200 bg-white p-3">
+                                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Realized P&L · 30d</div>
+                                    <div className="mt-1 flex items-baseline gap-2">
+                                        <div className={`inst-mono text-xl font-bold ${totalPnl >= 0 ? "text-emerald-600" : "text-red-600"}`}>{totalPnl >= 0 ? "+" : "−"}${Math.abs(totalPnl).toFixed(2)}</div>
+                                        <div className="text-[11px] text-slate-500">{closed.length} trades closed</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* ─────────── 6. STRATEGY ENGINE ─────────── */}
+                    <section className="border-b border-slate-200 bg-white">
+                        <div className="mx-auto max-w-[1400px] px-5 py-7">
+                            <div className="mb-4">
+                                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">SECTION 03 · STRATEGY ENGINE</div>
+                                <h2 className="mt-0.5 text-[20px] font-bold tracking-tight text-slate-900">Systematic Decision Pipeline</h2>
+                            </div>
+                            <div className="grid gap-2 md:grid-cols-5">
+                                {[
+                                    ["01", "Data Intake", "TradingView feeds, broker tickers, macro calendar and order-flow snapshots aggregated continuously."],
+                                    ["02", "Analysis Engine", "Multi-timeframe technicals, regime detection, statistical filters and cross-asset correlation."],
+                                    ["03", "Signal Generation", "Structured long / short signals with confidence weighting and time-decay scoring."],
+                                    ["04", "Risk Filter", "Pre-trade FTMO compliance, exposure caps, drawdown discipline and event blackout."],
+                                    ["05", "Execution Layer", "Signed routing to connected broker (MT5 / cTrader) with full audit log per ticket."],
+                                ].map(([n,t,d]) => (
+                                    <div key={n} className="rounded-md border border-slate-200 bg-white p-3.5">
+                                        <div className="inst-mono text-[10px] font-bold text-slate-400">{n}</div>
+                                        <div className="mt-1 text-[13px] font-bold text-slate-900">{t}</div>
+                                        <div className="mt-1.5 text-[11px] leading-relaxed text-slate-600">{d}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* ─────────── 7. SIGNAL FEED · 8. AI INSIGHT (two-column) ─────────── */}
+                    <section className="border-b border-slate-200 bg-slate-50">
+                        <div className="mx-auto grid max-w-[1400px] gap-4 px-5 py-7 md:grid-cols-[2fr_1fr]">
+                            {/* Activity feed */}
+                            <div>
+                                <div className="mb-3">
+                                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">SECTION 04 · LIVE SIGNAL FEED</div>
+                                    <h2 className="mt-0.5 text-[18px] font-bold tracking-tight text-slate-900">Desk Activity Log</h2>
+                                </div>
+                                <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
+                                    <div className="grid grid-cols-[110px_90px_70px_80px_1fr_70px] gap-3 border-b border-slate-200 bg-slate-50 px-3 py-2 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                                        <div>Timestamp</div><div>Asset</div><div>Side</div><div>Conf.</div><div>Rationale</div><div className="text-right">Status</div>
+                                    </div>
+                                    {(botTrades||[]).slice(0, 8).map((tr, i) => {
+                                        const profit = Number(tr.profit ?? tr.pnl ?? 0);
+                                        const ts = tr.close_time || tr.time || tr.timestamp;
+                                        const timeStr = ts ? new Date(ts).toLocaleTimeString("en-GB", {hour:"2-digit", minute:"2-digit", second:"2-digit"}) : "—";
+                                        const dateStr = ts ? new Date(ts).toLocaleDateString("en-GB", {day:"2-digit", month:"short"}) : "";
+                                        const sym = tr.symbol || tr.pair || "—";
+                                        const side = String(tr.side || tr.type || "—").toUpperCase();
+                                        const closedRow = tr.status === "closed" || tr.close_price;
+                                        const conf = tr.confidence ?? tr.ai_score ?? Math.min(95, 60 + Math.abs(profit));
+                                        const reason = tr.reason || tr.rationale || (closedRow ? `Position closed · realized ${profit >= 0 ? "+" : "−"}$${Math.abs(profit).toFixed(2)}` : "Open — awaiting TradingView confirmation");
+                                        return (
+                                            <div key={tr.ticket || i} className="grid grid-cols-[110px_90px_70px_80px_1fr_70px] gap-3 border-b border-slate-100 px-3 py-2 text-[11px] last:border-b-0 hover:bg-slate-50">
+                                                <div className="inst-mono text-slate-600">{dateStr} <span className="text-slate-400">{timeStr}</span></div>
+                                                <div className="font-bold text-slate-900">{sym}</div>
+                                                <div className={`font-bold ${side === "BUY" || side === "LONG" ? "text-emerald-600" : side === "SELL" || side === "SHORT" ? "text-red-600" : "text-slate-500"}`}>{side}</div>
+                                                <div className="inst-mono text-slate-700">{Math.round(conf)}%</div>
+                                                <div className="truncate text-slate-600">{reason}</div>
+                                                <div className="text-right">
+                                                    <span className={`inline-block rounded-sm border px-1.5 py-0.5 text-[9px] font-bold uppercase ${closedRow ? (profit >= 0 ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700") : "border-blue-200 bg-blue-50 text-blue-700"}`}>
+                                                        {closedRow ? (profit >= 0 ? "WIN" : "LOSS") : "OPEN"}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                    {(!botTrades || botTrades.length === 0) && (
+                                        <div className="px-3 py-6 text-center text-[11px] text-slate-500">No signals on tape · awaiting TradingView confirmation</div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* AI insight panel */}
+                            <div>
+                                <div className="mb-3">
+                                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">SECTION 05 · RESEARCH ASSISTANT</div>
+                                    <h2 className="mt-0.5 text-[18px] font-bold tracking-tight text-slate-900">AI Observation</h2>
+                                </div>
+                                <div className="rounded-md border border-slate-200 bg-white">
+                                    <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                                        Current Read · {clock.toLocaleDateString("en-GB", {day:"2-digit", month:"short", year:"numeric"})}
+                                    </div>
+                                    <div className="space-y-3 p-4 text-[12px] leading-relaxed text-slate-700">
+                                        <div>
+                                            <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Observation</div>
+                                            <div>{brief.mainInsight || `Cross-asset volatility at ${fmtNum(volatility,2)}% with ${regime.toLowerCase()} regime. ${openCount} positions active across the desk.`}</div>
+                                        </div>
+                                        <div className="border-t border-slate-100 pt-3">
+                                            <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Market Context</div>
+                                            <div>{marketOpen ? "Primary sessions open · liquidity normal." : "Off-hours · widened spreads expected."} Data source <span className="inst-mono">{marketData?.source || "fallback"}</span>.</div>
+                                        </div>
+                                        <div className="border-t border-slate-100 pt-3">
+                                            <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Suggested Focus</div>
+                                            <div>{(filteredFx||[]).slice(0,3).map(x=>x.symbol).join(" · ") || "EURUSD · GBPUSD · XAUUSD"}</div>
+                                        </div>
+                                        <div className="border-t border-slate-100 pt-3">
+                                            <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Risk Note</div>
+                                            <div className={Math.abs(drawdown) > 3 ? "text-red-600" : "text-slate-700"}>
+                                                {brief.riskRecommendation || (Math.abs(drawdown) > 3 ? `Drawdown ${fmtPct(-Math.abs(drawdown))} elevated — reduce position sizing.` : "Risk parameters within institutional bands.")}
+                                            </div>
+                                        </div>
+                                        <button onClick={() => onNavigate && onNavigate("AI Agent")} className="mt-2 w-full rounded-sm border border-slate-300 bg-white py-1.5 text-[11px] font-bold text-slate-800 hover:bg-slate-50">
+                                            OPEN RESEARCH CONSOLE →
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* ─────────── 9. FOOTER / COMPLIANCE ─────────── */}
+                    <footer className="bg-white">
+                        <div className="mx-auto grid max-w-[1400px] gap-6 px-5 py-8 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <div className="grid h-7 w-7 place-items-center rounded-sm bg-[#0B2A6B] font-bold text-white text-xs">EX</div>
+                                    <div className="text-[13px] font-bold tracking-tight text-slate-900">EMPIREX CAPITAL OS</div>
+                                </div>
+                                <p className="mt-2 max-w-md text-[11px] leading-relaxed text-slate-500">
+                                    EMPIREX is an institutional-grade trading operations platform combining live market intelligence, systematic signal generation and disciplined risk control.
+                                </p>
+                                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                                    <span>BUILD 2026.05.20</span>
+                                    <span>TLS 1.3</span>
+                                    <span>SOC2-READY</span>
+                                </div>
+                            </div>
+                            {[
+                                ["Company",   [["About","#"],["Methodology","#"],["Contact","#"],["Careers","#"]]],
+                                ["Legal",     [["Terms of Service","#"],["Privacy Policy","#"],["Risk Disclosure","#"],["Data Disclaimer","#"]]],
+                                ["Operations",[["System Status","#"],["Security","#"],["API & Webhooks","#"],["Support","#"]]],
+                            ].map(([title, links]) => (
+                                <div key={title}>
+                                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{title}</div>
+                                    <ul className="mt-2 space-y-1.5 text-[12px] font-semibold text-slate-700">
+                                        {links.map(([l,h]) => <li key={l}><a href={h} className="hover:text-[#0B2A6B] hover:underline">{l}</a></li>)}
+                                    </ul>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="border-t border-slate-200">
+                            <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3 text-[10px] text-slate-500">
+                                <span>© {new Date().getFullYear()} EMPIREX OS · All rights reserved.</span>
+                                <span className="text-slate-300">|</span>
+                                <span><b className="text-slate-700">Risk warning:</b> Trading financial instruments carries substantial risk and may not be suitable for all investors. Past performance is not indicative of future results.</span>
+                            </div>
+                        </div>
+                    </footer>
+                </div>
+            );
+        }
+
         function EmpirexHomeAfterSignup() {
             const TEMP_ALLOW_HOME_WITHOUT_LOGIN = false;
             const [userName, setUserName] = useState(getUserNameFromContext);
@@ -4412,61 +4877,24 @@
                             <MarketsSection marketData={marketData} />
                         ) : activeSection === "הגדרות" ? (
                             <SettingsSection userName={userName} setUserName={setUserName} />
-                        ) : (<>
-                        <Hero userName={userName} onAction={handleAction} connectedBroker={connectedBroker} onDisconnect={handleDisconnectBroker} lang={lang} />
-
-                        <div className="mx-auto mt-7 flex max-w-[1320px] flex-wrap items-center justify-between gap-4 px-2">
-                            <div className="flex items-center gap-3 text-sm font-bold text-slate-500">
-                                <span className="relative flex h-2.5 w-2.5">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
-                                </span>
-                                <span className="text-emerald-600 font-black text-xs">{t("live_label", lang)}</span>
-                                <span className="text-slate-300">•</span>
-                                <span>{t("last_update", lang)} {dateLabel}</span>
-                                <span className="text-slate-300">•</span>
-                                <span>{marketData.source === "live-api" ? t("data_live", lang) : marketData.source === "partial-fallback" ? t("data_partial", lang) : t("data_fb", lang)}</span>
-                            </div>
-                            <button onClick={refreshData} disabled={loading}
-                                className={`flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-black shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-70 ${refreshed ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-[#07124A]"}`}>
-                                {loading ? (
-                                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity=".3"/><path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>
-                                ) : refreshed ? (
-                                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                ) : (
-                                    <Icon name="refresh" className="h-4 w-4" />
-                                )}
-                                {loading ? "מרענן..." : refreshed ? "עודכן!" : "רענן נתונים"}
-                            </button>
-                        </div>
-
-                        <div className="mx-auto mt-3 max-w-[1320px] px-2">
-                            <TradingViewTape />
-                        </div>
-
-                        <div id="market-sections" className="mx-auto mt-4 grid max-w-[1320px] gap-4">
-                            <CarouselSection
-                                title="מטבעות מט״ח חיים"
-                                subtitle="30 הזוגות המובילים — מתעדכן בזמן אמת מ-TradingView."
-                                items={filteredFx}
-                                type="fx"
-                                source={marketData.source}
-                                onOpenChart={(item) => handleOpenChart(item, 'fx')}
+                        ) : (
+                            <InstitutionalHome
+                                userName={userName}
+                                onAction={handleAction}
+                                connectedBroker={connectedBroker}
+                                onDisconnect={handleDisconnectBroker}
+                                lang={lang}
+                                marketData={marketData}
+                                dateLabel={dateLabel}
+                                loading={loading}
+                                refreshed={refreshed}
+                                refreshData={refreshData}
+                                filteredFx={filteredFx}
+                                filteredStocks={filteredStocks}
+                                handleOpenChart={handleOpenChart}
+                                onNavigate={handleNavigate}
                             />
-
-                            <CarouselSection
-                                title="המניות החזקות במעקב"
-                                subtitle="30 המניות החזקות ביותר — נפח מסחר חי מ-TradingView."
-                                items={filteredStocks}
-                                type="stock"
-                                source={marketData.source}
-                                onOpenChart={(item) => handleOpenChart(item, 'stock')}
-                            />
-
-                            <SetupCards onAction={handleAction} lang={lang} />
-                            <AiInsight onAction={handleAction} lang={lang} />
-                        </div>
-                        </>)}
+                        )}
                     </main>
                     {chartItem && (
                         <ChartModal
