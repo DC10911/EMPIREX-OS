@@ -2932,89 +2932,43 @@
             return { status:"VALID", reason:"העסקה עומדת בכללי הדמו", tone:"#22C55E" };
         }
 
-        // TradingView Widget — Official Advanced Real-Time Chart embed
-        // Uses the documented embed-widget-advanced-chart.js pattern (most reliable, no global TradingView dependency)
+        // TradingView Widget — Stable iframe embed (prevents script re-injection flicker/jumps)
         function TradingViewChart({ symbol = "OANDA:EURUSD", interval = "5", theme = "dark", locale = "en", height = 560 }) {
-            const hostRef = React.useRef(null);
             const [status, setStatus] = React.useState("loading"); // loading | ready | error
+            const iframeSrc = React.useMemo(() => {
+                const p = new URLSearchParams({
+                    symbol,
+                    interval,
+                    hidesidetoolbar: "0",
+                    symboledit: "1",
+                    saveimage: "0",
+                    toolbarbg: "#05070D",
+                    theme,
+                    style: "1",
+                    locale,
+                    withdateranges: "1",
+                    hide_top_toolbar: "0",
+                    hide_legend: "0",
+                    studies: "[\"Volume@tv-basicstudies\"]"
+                });
+                return "https://s.tradingview.com/widgetembed/?" + p.toString();
+            }, [symbol, interval, theme, locale]);
 
             React.useEffect(() => {
-                const host = hostRef.current;
-                if (!host) return;
-                let cancelled = false;
-                let timeoutId = null;
                 setStatus("loading");
-
-                // Clean any previous content (Strict Mode double-mount / symbol change)
-                host.innerHTML = "";
-
-                // Build container expected by the embed widget
-                const container = document.createElement("div");
-                container.className = "tradingview-widget-container";
-                container.style.height = "100%";
-                container.style.width = "100%";
-
-                const widgetDiv = document.createElement("div");
-                widgetDiv.className = "tradingview-widget-container__widget";
-                widgetDiv.style.height = "100%";
-                widgetDiv.style.width = "100%";
-                container.appendChild(widgetDiv);
-
-                const script = document.createElement("script");
-                script.type = "text/javascript";
-                script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
-                script.async = true;
-                script.innerHTML = JSON.stringify({
-                    autosize: true,
-                    symbol: symbol,
-                    interval: interval,
-                    timezone: "Asia/Jerusalem",
-                    theme: theme,
-                    style: "1",
-                    locale: locale,
-                    toolbar_bg: "#05070D",
-                    enable_publishing: false,
-                    hide_top_toolbar: false,
-                    hide_legend: false,
-                    save_image: false,
-                    calendar: false,
-                    allow_symbol_change: true,
-                    withdateranges: true,
-                    details: false,
-                    hotlist: false,
-                    studies: ["Volume@tv-basicstudies"],
-                    support_host: "https://www.tradingview.com"
-                });
-                script.onload = () => { if (!cancelled) setStatus("ready"); };
-                script.onerror = () => { if (!cancelled) setStatus("error"); };
-                container.appendChild(script);
-                host.appendChild(container);
-
-                // Safety: if iframe doesn't appear in 8s, mark error
-                timeoutId = setTimeout(() => {
-                    if (cancelled) return;
-                    if (!host.querySelector("iframe")) setStatus("error");
-                    else setStatus("ready");
-                }, 8000);
-
-                // Detect iframe insertion to clear loading state immediately
-                const mo = new MutationObserver(() => {
-                    if (cancelled) return;
-                    if (host.querySelector("iframe")) { setStatus("ready"); }
-                });
-                mo.observe(host, { childList: true, subtree: true });
-
-                return () => {
-                    cancelled = true;
-                    if (timeoutId) clearTimeout(timeoutId);
-                    try { mo.disconnect(); } catch {}
-                    if (host) host.innerHTML = "";
-                };
-            }, [symbol, interval, theme, locale]);
+            }, [iframeSrc]);
 
             return (
                 <div className="relative" style={{ height }}>
-                    <div ref={hostRef} className="absolute inset-0 rounded-2xl overflow-hidden" />
+                    <iframe
+                        title="TradingView Advanced Chart"
+                        src={iframeSrc}
+                        className="absolute inset-0 h-full w-full rounded-2xl border-0"
+                        loading="eager"
+                        allow="clipboard-write"
+                        onLoad={() => setStatus("ready")}
+                        onError={() => setStatus("error")}
+                    />
                     {status === "loading" && (
                         <div className="absolute inset-0 grid place-items-center rounded-2xl bg-[#05070D]/85 text-slate-300">
                             <div className="flex flex-col items-center gap-3">
