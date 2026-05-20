@@ -2360,37 +2360,64 @@
                 return (
                     <>
                         {/* Agent Hero */}
-                        <GlassCard className="min-h-[126px] p-7" >
+                        <GlassCard className="p-6 md:p-8">
                             <div className="absolute inset-0 pointer-events-none" style={{background:"linear-gradient(to left, rgba(34,211,238,0.10), rgba(59,130,246,0.08), rgba(124,58,237,0.16))"}} />
-                            <div className="absolute left-10 top-1/2 h-28 w-80 -translate-y-1/2 opacity-70">
-                                <div className="absolute left-0 top-8 h-20 w-20 rounded-full bg-cyan-400/20 blur-2xl" />
-                                <div className="absolute left-20 top-3 h-24 w-72 rounded-full bg-violet-500/20 blur-3xl" />
-                                <div className="absolute left-16 top-6 grid h-20 w-20 place-items-center rounded-full border border-cyan-300/40 bg-cyan-300/10" style={{boxShadow:"0 0 40px rgba(34,211,238,0.4)"}}>
-                                    <I.bot className="h-10 w-10 text-cyan-200" />
+
+                            <div dir="rtl" className="relative flex flex-col-reverse items-stretch gap-6 md:flex-row md:items-center">
+                                {/* Bot visual — sits at LEFT in RTL via order */}
+                                <div className="relative order-1 md:order-2 md:ms-auto h-32 w-full md:w-[340px] shrink-0">
+                                    {/* glow halos */}
+                                    <div className="absolute left-4 top-1/2 h-28 w-28 -translate-y-1/2 rounded-full bg-cyan-400/25 blur-3xl" />
+                                    <div className="absolute left-24 top-1/2 h-32 w-72 -translate-y-1/2 rounded-full bg-violet-500/25 blur-3xl" />
+
+                                    {/* neural nodes & lines — extend to the RIGHT (toward text) */}
+                                    <svg className="absolute inset-0 h-full w-full opacity-80" viewBox="0 0 340 128" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                                        <defs>
+                                            <linearGradient id="lnCyan" x1="0" x2="1"><stop offset="0" stopColor="#22D3EE" stopOpacity="0.9"/><stop offset="1" stopColor="#22D3EE" stopOpacity="0"/></linearGradient>
+                                            <linearGradient id="lnViolet" x1="0" x2="1"><stop offset="0" stopColor="#A78BFA" stopOpacity="0.8"/><stop offset="1" stopColor="#A78BFA" stopOpacity="0"/></linearGradient>
+                                            <linearGradient id="lnBlue" x1="0" x2="1"><stop offset="0" stopColor="#60A5FA" stopOpacity="0.75"/><stop offset="1" stopColor="#60A5FA" stopOpacity="0"/></linearGradient>
+                                        </defs>
+                                        {/* lines from avatar (left center) outward to the right */}
+                                        <path d="M85 50 L320 30"  stroke="url(#lnCyan)"   strokeWidth="1.2"/>
+                                        <path d="M85 64 L320 64"  stroke="url(#lnViolet)" strokeWidth="1"/>
+                                        <path d="M85 78 L320 100" stroke="url(#lnBlue)"   strokeWidth="1.2"/>
+                                        <path d="M85 56 L240 12"  stroke="url(#lnCyan)"   strokeWidth="0.8"/>
+                                        <path d="M85 72 L260 116" stroke="url(#lnViolet)" strokeWidth="0.8"/>
+                                        {/* nodes */}
+                                        <circle cx="135" cy="40" r="2.4" fill="#22D3EE"/>
+                                        <circle cx="195" cy="64" r="1.8" fill="#A78BFA"/>
+                                        <circle cx="255" cy="86" r="2.2" fill="#60A5FA"/>
+                                        <circle cx="295" cy="32" r="1.6" fill="#22D3EE"/>
+                                        <circle cx="305" cy="100" r="1.8" fill="#A78BFA"/>
+                                    </svg>
+
+                                    {/* Bot avatar */}
+                                    <div className="absolute left-2 top-1/2 grid h-24 w-24 -translate-y-1/2 place-items-center rounded-full border border-cyan-300/45 bg-cyan-300/10" style={{boxShadow:"0 0 50px rgba(34,211,238,0.55), inset 0 0 20px rgba(34,211,238,0.25)"}}>
+                                        <I.bot className="h-12 w-12 text-cyan-200" />
+                                    </div>
                                 </div>
-                                <div className="absolute left-32 top-12 h-px w-48" style={{background:"linear-gradient(to right, rgba(34,211,238,0.8), transparent)"}} />
-                                <div className="absolute left-32 top-16 h-px w-40" style={{background:"linear-gradient(to right, rgba(167,139,250,0.6), transparent)"}} />
-                                <div className="absolute left-32 top-20 h-px w-56" style={{background:"linear-gradient(to right, rgba(96,165,250,0.5), transparent)"}} />
-                            </div>
-                            <div className="relative mr-auto max-w-[910px] text-right">
-                                <div className="mb-3 flex items-center justify-end gap-2 text-xs text-white/45">
-                                    <span>עודכן לאחרונה: {new Date().toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit"})}</span>
-                                    <span className="h-2 w-2 rounded-full bg-blue-400" />
-                                </div>
-                                <h1 className="text-[26px] font-black leading-relaxed text-white">
-                                    עד כה הבוט ביצע <span className="text-cyan-300">{closed.length + openCount}</span> תהליכי מסחר וסיכם תשואה של{" "}
-                                    <span className={totalPnl>=0?"text-emerald-300":"text-rose-300"}>{totalPnl>=0?"+":"-"}${Math.abs(totalPnl).toFixed(2)}</span>{" "}
-                                    עם עסקאות ברווח של <span className="text-cyan-300">{Math.round(winRate)}%</span>.
-                                </h1>
-                                <div className="mt-3 space-y-1 text-base">
-                                    <p className="flex items-center justify-end gap-2 text-cyan-300">
-                                        <I.shield className="h-4 w-4" />
-                                        הבוט מבצע מסחר בזמן אמת בהתאם לאסטרטגיה שבחרת
-                                    </p>
-                                    <p className="flex items-center justify-end gap-2 text-pink-300">
-                                        <I.zap className="h-4 w-4" />
-                                        מצב: פעיל | אסטרטגיה: תכנית A | סגנון: מאוזן צמיחה
-                                    </p>
+
+                                {/* Text — sits at RIGHT in RTL */}
+                                <div className="relative order-2 md:order-1 flex-1 text-right">
+                                    <div className="mb-3 flex items-center justify-end gap-2 text-xs text-white/50">
+                                        <span>עודכן לאחרונה: {new Date().toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit"})}</span>
+                                        <span className="h-2 w-2 rounded-full bg-blue-400" />
+                                    </div>
+                                    <h1 className="text-[22px] md:text-[26px] font-black leading-relaxed text-white">
+                                        עד כה הבוט ביצע <span className="text-cyan-300">{closed.length + openCount}</span> תהליכי מסחר וסיכם תשואה של{" "}
+                                        <span className={totalPnl>=0?"text-emerald-300":"text-rose-300"}>{totalPnl>=0?"+":"-"}${Math.abs(totalPnl).toFixed(2)}</span>{" "}
+                                        עם עסקאות ברווח של <span className="text-cyan-300">{Math.round(winRate)}%</span>.
+                                    </h1>
+                                    <div className="mt-3 space-y-1 text-sm md:text-base">
+                                        <p className="flex items-center justify-end gap-2 text-cyan-300">
+                                            <span>הבוט מבצע מסחר בזמן אמת בהתאם לאסטרטגיה שבחרת</span>
+                                            <I.shield className="h-4 w-4" />
+                                        </p>
+                                        <p className="flex items-center justify-end gap-2 text-pink-300">
+                                            <span>מצב: פעיל | אסטרטגיה: תכנית A | סגנון: מאוזן צמיחה</span>
+                                            <I.zap className="h-4 w-4" />
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </GlassCard>
