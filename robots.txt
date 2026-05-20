@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://empirex-os.onrender.com/sitemap.xml
