@@ -2932,7 +2932,7 @@
             return { status:"VALID", reason:"העסקה עומדת בכללי הדמו", tone:"#22C55E" };
         }
 
-        // Stable chart renderer — always draws (API candles when available, synthetic fallback otherwise)
+        // Stable chart renderer — fully local synthetic candles (no external chart/network dependency)
         const TradingViewChart = React.memo(function TradingViewChart({ symbol = "FX:EURUSD", interval = "5", height = 560 }) {
             const rootRef = React.useRef(null);
             const [status, setStatus] = React.useState("loading"); // loading | ready | error
@@ -2973,55 +2973,33 @@
                 });
                 ro.observe(el);
 
-                const toYfSymbol = (tvSymbol) => {
-                    const s = String(tvSymbol || "");
-                    if (s.startsWith("FX:")) return s.replace("FX:", "") + "=X";
-                    if (s.includes("XAUUSD")) return "GC=F";
-                    if (s.includes("SPX") || s.includes("SPXUSD")) return "^GSPC";
-                    if (s.includes("DJI")) return "^DJI";
-                    if (s.includes("NSX") || s.includes("NDX")) return "^NDX";
-                    if (s.startsWith("BINANCE:")) return s.split(":")[1] || "BTCUSDT";
-                    return (s.split(":")[1] || s || "EURUSD=X");
-                };
+                const iv = Math.max(1, parseInt(String(interval || "5"), 10) || 5);
+                const step = iv * 60;
+                const seed = Array.from(String(symbol || "FX:EURUSD")).reduce((a, ch) => a + ch.charCodeAt(0), 0) % 97;
+                const base = 80 + seed;
+                const now = Math.floor(Date.now() / step) * step;
+                const candles = [];
 
-                const iv = String(interval || "5");
-                const yfInterval = iv === "1" ? "1m" : iv === "3" ? "2m" : iv === "5" ? "5m" : iv === "15" ? "15m" : iv === "30" ? "30m" : iv === "60" ? "60m" : "1d";
-                const yfRange = ["1m","2m","5m","15m","30m","60m"].includes(yfInterval) ? "1d" : "1y";
-
-                const drawFallback = () => {
-                    const now = Math.floor(Date.now() / 1000);
-                    const candles = [];
-                    let px = 100;
-                    for (let i = 120; i >= 0; i--) {
-                        const t = now - i * 300;
-                        const drift = (Math.random() - 0.5) * 1.8;
-                        const o = px;
-                        const c = Math.max(1, o + drift);
-                        const h = Math.max(o, c) + Math.random() * 0.9;
-                        const l = Math.min(o, c) - Math.random() * 0.9;
-                        candles.push({ time: t, open: +o.toFixed(3), high: +h.toFixed(3), low: +l.toFixed(3), close: +c.toFixed(3) });
-                        px = c;
-                    }
-                    series.setData(candles);
-                    chart.timeScale().fitContent();
-                    if (mounted) setStatus("ready");
-                };
-
-                fetch(`/api/market/candles?symbol=${encodeURIComponent(toYfSymbol(symbol))}&interval=${encodeURIComponent(yfInterval)}&range=${encodeURIComponent(yfRange)}`)
-                    .then(r => r.json())
-                    .then(data => {
-                        if (!mounted) return;
-                        if (Array.isArray(data?.candles) && data.candles.length > 8) {
-                            series.setData(data.candles);
-                            chart.timeScale().fitContent();
-                            setStatus("ready");
-                        } else {
-                            drawFallback();
-                        }
-                    })
-                    .catch(() => {
-                        if (mounted) drawFallback();
+                for (let i = 180; i >= 0; i--) {
+                    const t = now - i * step;
+                    const wave = Math.sin((i + seed) / 9) * 1.8 + Math.cos((i + seed) / 17) * 0.9;
+                    const drift = (seed % 5 - 2) * 0.02;
+                    const o = base + wave + i * drift;
+                    const c = o + Math.sin((i + seed) / 3) * 0.55;
+                    const h = Math.max(o, c) + 0.35 + Math.abs(Math.cos((i + seed) / 5)) * 0.25;
+                    const l = Math.min(o, c) - 0.35 - Math.abs(Math.sin((i + seed) / 7)) * 0.25;
+                    candles.push({
+                        time: t,
+                        open: +o.toFixed(4),
+                        high: +h.toFixed(4),
+                        low: +l.toFixed(4),
+                        close: +c.toFixed(4),
                     });
+                }
+
+                series.setData(candles);
+                chart.timeScale().fitContent();
+                if (mounted) setStatus("ready");
 
                 return () => {
                     mounted = false;
