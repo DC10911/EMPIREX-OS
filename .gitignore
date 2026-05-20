@@ -16,3 +16,5 @@ server.log
 .ruff_cache/
 .DS_Store
 Thumbs.db
+node_modules/
+*.err
