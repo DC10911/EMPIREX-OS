@@ -87,6 +87,19 @@
             ["risk", "סיכון"],
         ];
 
+        // Map navigation labels (canonical Hebrew used as state key) -> translation key
+        const NAV_T_KEY = {
+            "בית": "home",
+            "שווקים": "markets",
+            "מסחר": "trade",
+            "אוטומציה": "automation",
+            "AI Agent": "ai",
+            "יומן": "journal",
+            "תיק": "portfolio",
+            "סיכון": "risk",
+            "הגדרות": "settings",
+        };
+
         const navMeta = {
             "בית": "בית",
             "שווקים": "עמוד שווקים",
@@ -97,6 +110,32 @@
             "תיק": "ניהול תיק",
             "סיכון": "Risk Engine",
         };
+
+        // ════════════════════════════════════════════════════════════════════════
+        // i18n — תרגום אמיתי. שינוי שפה בהגדרות מחיל את התרגום על כל המערכת.
+        // ════════════════════════════════════════════════════════════════════════
+        const RTL_LANGS = ["he","ar","fa","ur","yi"];
+        const TRANSLATIONS = {
+            he: { home:"בית", markets:"שווקים", trade:"מסחר", automation:"אוטומציה", ai:"AI Agent", journal:"יומן", portfolio:"תיק", risk:"סיכון", settings:"הגדרות", notifications:"התראות", search_placeholder:'חפש מט"ח, מניה או סימבול...', welcome:"ברוכים הבאים", connect_broker:"חבר ברוקר", help_24_7:"עזרה 24/7", support_title:"הסוכן האישי שלך", support_intro:"שלום! איך קוראים לך?", name_label:"שם", continue:"המשך", type_message:"כתוב הודעה...", send:"שלח", mute:"השתק קול", unmute:"הפעל קול" },
+            en: { home:"Home", markets:"Markets", trade:"Trade", automation:"Automation", ai:"AI Agent", journal:"Journal", portfolio:"Portfolio", risk:"Risk", settings:"Settings", notifications:"Notifications", search_placeholder:"Search FX, stock or symbol...", welcome:"Welcome", connect_broker:"Connect Broker", help_24_7:"Help 24/7", support_title:"Your Personal Agent", support_intro:"Hi! What's your name?", name_label:"Name", continue:"Continue", type_message:"Type a message...", send:"Send", mute:"Mute voice", unmute:"Unmute voice" },
+            ar: { home:"الرئيسية", markets:"الأسواق", trade:"تداول", automation:"الأتمتة", ai:"وكيل AI", journal:"اليومية", portfolio:"المحفظة", risk:"المخاطر", settings:"الإعدادات", notifications:"الإشعارات", search_placeholder:"ابحث عن عملة أو سهم...", welcome:"مرحباً", connect_broker:"اربط وسيطاً", help_24_7:"دعم 24/7", support_title:"وكيلك الشخصي", support_intro:"مرحباً! ما اسمك؟", name_label:"الاسم", continue:"متابعة", type_message:"اكتب رسالة...", send:"إرسال", mute:"كتم الصوت", unmute:"تشغيل الصوت" },
+            ru: { home:"Главная", markets:"Рынки", trade:"Торговля", automation:"Автоматизация", ai:"AI-агент", journal:"Журнал", portfolio:"Портфель", risk:"Риск", settings:"Настройки", notifications:"Уведомления", search_placeholder:"Поиск валюты или акции...", welcome:"Добро пожаловать", connect_broker:"Подключить брокера", help_24_7:"Помощь 24/7", support_title:"Ваш личный агент", support_intro:"Привет! Как вас зовут?", name_label:"Имя", continue:"Продолжить", type_message:"Написать сообщение...", send:"Отправить", mute:"Отключить голос", unmute:"Включить голос" },
+            es: { home:"Inicio", markets:"Mercados", trade:"Operar", automation:"Automatización", ai:"Agente IA", journal:"Diario", portfolio:"Cartera", risk:"Riesgo", settings:"Ajustes", notifications:"Notificaciones", search_placeholder:"Buscar divisa o acción...", welcome:"Bienvenido", connect_broker:"Conectar bróker", help_24_7:"Ayuda 24/7", support_title:"Tu agente personal", support_intro:"¡Hola! ¿Cómo te llamas?", name_label:"Nombre", continue:"Continuar", type_message:"Escribe un mensaje...", send:"Enviar", mute:"Silenciar voz", unmute:"Activar voz" },
+            fr: { home:"Accueil", markets:"Marchés", trade:"Trader", automation:"Automatisation", ai:"Agent IA", journal:"Journal", portfolio:"Portefeuille", risk:"Risque", settings:"Paramètres", notifications:"Notifications", search_placeholder:"Rechercher une devise ou action...", welcome:"Bienvenue", connect_broker:"Connecter le courtier", help_24_7:"Aide 24/7", support_title:"Votre agent personnel", support_intro:"Bonjour ! Quel est votre nom ?", name_label:"Nom", continue:"Continuer", type_message:"Écrire un message...", send:"Envoyer", mute:"Couper la voix", unmute:"Activer la voix" },
+            de: { home:"Start", markets:"Märkte", trade:"Handeln", automation:"Automatisierung", ai:"KI-Agent", journal:"Tagebuch", portfolio:"Portfolio", risk:"Risiko", settings:"Einstellungen", notifications:"Benachrichtigungen", search_placeholder:"Suche Währung oder Aktie...", welcome:"Willkommen", connect_broker:"Broker verbinden", help_24_7:"Hilfe 24/7", support_title:"Ihr persönlicher Agent", support_intro:"Hallo! Wie heißen Sie?", name_label:"Name", continue:"Weiter", type_message:"Nachricht schreiben...", send:"Senden", mute:"Stumm", unmute:"Stimme an" },
+            zh: { home:"主页", markets:"市场", trade:"交易", automation:"自动化", ai:"AI助手", journal:"日志", portfolio:"投资组合", risk:"风险", settings:"设置", notifications:"通知", search_placeholder:"搜索货币或股票...", welcome:"欢迎", connect_broker:"连接经纪商", help_24_7:"全天候帮助", support_title:"您的个人助手", support_intro:"你好!请问您的名字?", name_label:"姓名", continue:"继续", type_message:"输入消息...", send:"发送", mute:"静音", unmute:"开启声音" },
+        };
+        function getLang(){ try { return localStorage.getItem("empirex_lang") || "he"; } catch { return "he"; } }
+        function t(key, lang){
+            const l = lang || getLang();
+            return (TRANSLATIONS[l] && TRANSLATIONS[l][key]) || TRANSLATIONS.he[key] || key;
+        }
+        function applyLangToDocument(lang){
+            try {
+                document.documentElement.lang = lang;
+                document.documentElement.dir = RTL_LANGS.includes(lang) ? "rtl" : "ltr";
+            } catch {}
+        }
 
         const fallbackFx = [
             { symbol: "EUR/USD", name: "Euro / US Dollar", price: 1.1761, change: 0.18, live: false, source: "fallback" },
@@ -336,10 +375,10 @@
             );
         }
 
-        function Header({ userName = "דניאל כהן", active = "בית", onNavigate = () => { }, searchQuery = "", onSearchChange = () => { }, onSearchSubmit = () => { }, onOpenPlaceholder = () => { } }) {
+        function Header({ userName = "דניאל כהן", active = "בית", onNavigate = () => { }, searchQuery = "", onSearchChange = () => { }, onSearchSubmit = () => { }, onOpenPlaceholder = () => { }, lang = "he" }) {
 
             return (
-                <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/88 backdrop-blur-2xl" dir="rtl">
+                <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/88 backdrop-blur-2xl" dir={RTL_LANGS.includes(lang) ? "rtl" : "ltr"}>
                     <div className="mx-auto grid h-[82px] max-w-[1320px] grid-cols-[1fr_auto_1fr] items-center gap-4 px-5">
                         <div className="justify-self-start">
                             <EmpirexLogo compact />
@@ -354,7 +393,7 @@
                                         }`}
                                 >
                                     <Icon name={icon} className="h-4 w-4" />
-                                    {label}
+                                    {NAV_T_KEY[label] ? t(NAV_T_KEY[label], lang) : label}
                                 </button>
                             ))}
                         </nav>
@@ -372,7 +411,7 @@
                                 <input
                                     value={searchQuery}
                                     onChange={(event) => onSearchChange(event.target.value)}
-                                    placeholder={'חפש מט"ח, מניה או סימבול...'}
+                                    placeholder={t("search_placeholder", lang)}
                                     className="w-56 bg-transparent text-sm font-semibold text-[#07124A] placeholder:text-slate-400 outline-none"
                                 />
                             </form>
@@ -3185,7 +3224,11 @@
             function flash(msg){ setSaveMsg(msg); setTimeout(()=>setSaveMsg(""), 2500); }
             function saveLang(v){
                 setLang(v);
-                try { localStorage.setItem("empirex_lang", v); document.documentElement.lang = v; } catch {}
+                try {
+                    localStorage.setItem("empirex_lang", v);
+                    applyLangToDocument(v);
+                    window.dispatchEvent(new CustomEvent("empirex:lang", { detail: { lang: v }}));
+                } catch {}
                 flash("השפה נשמרה ✓");
             }
             function saveProfile(){
@@ -3498,9 +3541,285 @@
             );
         }
 
+        // ════════════════════════════════════════════════════════════════════════
+        // SupportWidget — צ'אט עזרה 24/7 ציף שמאל למטה, עם קול אנושי בעברית
+        // ════════════════════════════════════════════════════════════════════════
+        function SupportWidget({ lang = "he" }) {
+            const [open, setOpen] = useState(false);
+            const [name, setName] = useState(() => { try { return localStorage.getItem("empirex_support_name") || ""; } catch { return ""; } });
+            const [nameInput, setNameInput] = useState("");
+            const [messages, setMessages] = useState([]);
+            const [input, setInput] = useState("");
+            const [sending, setSending] = useState(false);
+            const [muted, setMuted] = useState(() => { try { return localStorage.getItem("empirex_support_muted") === "1"; } catch { return false; } });
+            const scrollRef = React.useRef(null);
+
+            // Pick best Hebrew (or locale) voice
+            const voiceRef = React.useRef(null);
+            useEffect(() => {
+                function pickVoice() {
+                    if (!("speechSynthesis" in window)) return;
+                    const voices = window.speechSynthesis.getVoices();
+                    const localeTag = lang === "he" ? "he" : lang;
+                    // Prefer natural / Google / Microsoft female voices
+                    const ranked = voices.map(v => {
+                        let score = 0;
+                        const vl = (v.lang || "").toLowerCase();
+                        if (vl.startsWith(localeTag)) score += 100;
+                        if (vl.startsWith("he")) score += 50;
+                        const nm = (v.name || "").toLowerCase();
+                        if (/google/.test(nm)) score += 20;
+                        if (/microsoft/.test(nm)) score += 15;
+                        if (/natural|neural|premium|enhanced/.test(nm)) score += 25;
+                        if (/female|woman|asaf|carmit|hila|noa|sarah|samantha/.test(nm)) score += 10;
+                        return { v, score };
+                    }).sort((a,b)=>b.score-a.score);
+                    voiceRef.current = ranked[0]?.v || null;
+                }
+                pickVoice();
+                if ("speechSynthesis" in window) {
+                    window.speechSynthesis.onvoiceschanged = pickVoice;
+                }
+            }, [lang]);
+
+            function speak(text) {
+                if (muted) return;
+                if (!("speechSynthesis" in window)) return;
+                try {
+                    window.speechSynthesis.cancel();
+                    const u = new SpeechSynthesisUtterance(text);
+                    u.lang = lang === "he" ? "he-IL" : lang;
+                    if (voiceRef.current) u.voice = voiceRef.current;
+                    u.rate = 1.02;
+                    u.pitch = 1.05;
+                    u.volume = 0.95;
+                    window.speechSynthesis.speak(u);
+                } catch {}
+            }
+
+            useEffect(() => {
+                if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+            }, [messages, open]);
+
+            async function sendToBackend(message) {
+                setSending(true);
+                try {
+                    const res = await fetch("/api/support/chat", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ name, message, locale: lang, history: messages.slice(-10) }),
+                    });
+                    const j = await res.json();
+                    const reply = j?.data?.reply || "לא הצלחתי לעבד את הבקשה כרגע. נסה שוב בעוד רגע.";
+                    setMessages(prev => [...prev, { role: "agent", text: reply, ts: Date.now() }]);
+                    speak(reply);
+                } catch (e) {
+                    const fallback = "יש בעיית רשת. בדוק את החיבור ונסה שוב.";
+                    setMessages(prev => [...prev, { role: "agent", text: fallback, ts: Date.now() }]);
+                } finally {
+                    setSending(false);
+                }
+            }
+
+            async function handleOpen() {
+                setOpen(true);
+                if (name && messages.length === 0) {
+                    // Greet immediately on first open
+                    await sendToBackend("שלום");
+                }
+            }
+
+            function submitName() {
+                const n = nameInput.trim();
+                if (!n) return;
+                try { localStorage.setItem("empirex_support_name", n); } catch {}
+                setName(n);
+                setNameInput("");
+                // Trigger backend greeting with new name
+                (async () => {
+                    setSending(true);
+                    try {
+                        const res = await fetch("/api/support/chat", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ name: n, message: "שלום", locale: lang, history: [] }),
+                        });
+                        const j = await res.json();
+                        const reply = j?.data?.reply || `שלום ${n}! איך אעזור?`;
+                        setMessages([{ role: "agent", text: reply, ts: Date.now() }]);
+                        speak(reply);
+                    } catch {
+                        setMessages([{ role: "agent", text: `שלום ${n}! איך אעזור?`, ts: Date.now() }]);
+                    } finally {
+                        setSending(false);
+                    }
+                })();
+            }
+
+            async function submitMessage(e) {
+                e?.preventDefault();
+                const msg = input.trim();
+                if (!msg || sending) return;
+                setInput("");
+                setMessages(prev => [...prev, { role: "user", text: msg, ts: Date.now() }]);
+                await sendToBackend(msg);
+            }
+
+            function toggleMute() {
+                const next = !muted;
+                setMuted(next);
+                try { localStorage.setItem("empirex_support_muted", next ? "1" : "0"); } catch {}
+                if (next && "speechSynthesis" in window) window.speechSynthesis.cancel();
+            }
+
+            const labels = {
+                title: t("support_title", lang),
+                intro: t("support_intro", lang),
+                nameLabel: t("name_label", lang),
+                cont: t("continue", lang),
+                typeMsg: t("type_message", lang),
+                send: t("send", lang),
+                mute: t("mute", lang),
+                unmute: t("unmute", lang),
+                help: t("help_24_7", lang),
+            };
+
+            return (
+                <>
+                    {!open && (
+                        <button
+                            onClick={handleOpen}
+                            aria-label={labels.help}
+                            title={labels.help}
+                            className="fixed bottom-6 left-6 z-[60] grid h-16 w-16 place-items-center rounded-full text-white shadow-[0_18px_40px_rgba(11,77,255,0.45)] hover:scale-105 transition"
+                            style={{ background: "linear-gradient(135deg,#0B4DFF 0%,#15D7D1 100%)" }}
+                        >
+                            <span className="absolute inset-0 rounded-full animate-ping opacity-30" style={{ background: "linear-gradient(135deg,#0B4DFF 0%,#15D7D1 100%)" }} />
+                            <svg viewBox="0 0 24 24" className="relative h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21 12a9 9 0 0 1-13 8L3 21l1-5a9 9 0 1 1 17-4Z" />
+                                <circle cx="8.5" cy="12" r="0.8" fill="currentColor" stroke="none" />
+                                <circle cx="12" cy="12" r="0.8" fill="currentColor" stroke="none" />
+                                <circle cx="15.5" cy="12" r="0.8" fill="currentColor" stroke="none" />
+                            </svg>
+                            <span className="absolute -top-1 -right-1 grid h-5 w-5 place-items-center rounded-full bg-emerald-500 text-[10px] font-black text-white ring-2 ring-white">24/7</span>
+                        </button>
+                    )}
+                    {open && (
+                        <div
+                            className="fixed bottom-6 left-6 z-[60] flex w-[380px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_24px_60px_rgba(7,18,74,0.25)]"
+                            style={{ height: "min(540px, 80vh)" }}
+                            dir={RTL_LANGS.includes(lang) ? "rtl" : "ltr"}
+                        >
+                            <div className="flex items-center justify-between gap-3 px-4 py-3 text-white" style={{ background: "linear-gradient(135deg,#07124A 0%,#0B4DFF 60%,#15D7D1 100%)" }}>
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <div className="grid h-10 w-10 place-items-center rounded-full bg-white/15 backdrop-blur-sm">
+                                        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <circle cx="12" cy="8" r="3" />
+                                            <path d="M6 21a6 6 0 0 1 12 0" />
+                                        </svg>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-black leading-tight truncate">{labels.title}</p>
+                                        <p className="text-[11px] font-semibold opacity-90 flex items-center gap-1">
+                                            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" /> {labels.help}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <button onClick={toggleMute} title={muted ? labels.unmute : labels.mute} className="grid h-8 w-8 place-items-center rounded-full hover:bg-white/15">
+                                        {muted ? (
+                                            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+                                        ) : (
+                                            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                                        )}
+                                    </button>
+                                    <button onClick={() => setOpen(false)} aria-label="Close" className="grid h-8 w-8 place-items-center rounded-full hover:bg-white/15 text-xl leading-none font-black">×</button>
+                                </div>
+                            </div>
+
+                            {!name ? (
+                                <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6 text-center">
+                                    <div className="grid h-16 w-16 place-items-center rounded-full" style={{ background: "linear-gradient(135deg,#0B4DFF 0%,#15D7D1 100%)" }}>
+                                        <svg viewBox="0 0 24 24" className="h-8 w-8 text-white" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="3"/><path d="M6 21a6 6 0 0 1 12 0"/></svg>
+                                    </div>
+                                    <p className="text-base font-black text-[#07124A]">{labels.intro}</p>
+                                    <p className="text-xs font-semibold text-slate-500 -mt-2">לפני שנתחיל, ספר לי איך לקרוא לך — כדי שאוכל לעזור באופן אישי.</p>
+                                    <form onSubmit={(e)=>{e.preventDefault();submitName();}} className="w-full flex flex-col gap-2">
+                                        <input
+                                            autoFocus
+                                            value={nameInput}
+                                            onChange={(e)=>setNameInput(e.target.value)}
+                                            placeholder={labels.nameLabel}
+                                            className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold text-[#07124A] outline-none focus:border-[#0B4DFF]"
+                                        />
+                                        <button type="submit" disabled={!nameInput.trim()} className="w-full rounded-2xl px-4 py-3 text-sm font-black text-white disabled:opacity-50" style={{ background: "linear-gradient(135deg,#0B4DFF 0%,#15D7D1 100%)" }}>
+                                            {labels.cont}
+                                        </button>
+                                    </form>
+                                </div>
+                            ) : (
+                                <>
+                                    <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
+                                        {messages.length === 0 && (
+                                            <div className="text-center text-xs font-semibold text-slate-400 py-8">מתחיל שיחה...</div>
+                                        )}
+                                        {messages.map((m, i) => (
+                                            <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                                                <div className={`max-w-[78%] rounded-2xl px-3 py-2 text-sm font-semibold whitespace-pre-wrap ${
+                                                    m.role === "user"
+                                                        ? "bg-[#0B4DFF] text-white rounded-br-sm"
+                                                        : "bg-white border border-slate-200 text-[#07124A] rounded-bl-sm shadow-sm"
+                                                }`}>
+                                                    {m.text}
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {sending && (
+                                            <div className="flex justify-start">
+                                                <div className="bg-white border border-slate-200 rounded-2xl rounded-bl-sm px-3 py-2 text-sm text-slate-500 shadow-sm">
+                                                    <span className="inline-flex gap-1">
+                                                        <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+                                                        <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "150ms" }} />
+                                                        <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <form onSubmit={submitMessage} className="flex items-center gap-2 border-t border-slate-200 bg-white p-3">
+                                        <input
+                                            value={input}
+                                            onChange={(e)=>setInput(e.target.value)}
+                                            placeholder={labels.typeMsg}
+                                            className="flex-1 rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-[#07124A] outline-none focus:border-[#0B4DFF]"
+                                            disabled={sending}
+                                        />
+                                        <button type="submit" disabled={!input.trim() || sending} className="grid h-10 w-10 place-items-center rounded-2xl text-white disabled:opacity-50" style={{ background: "linear-gradient(135deg,#0B4DFF 0%,#15D7D1 100%)" }} title={labels.send}>
+                                            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: RTL_LANGS.includes(lang) ? "scaleX(-1)" : "none" }}>
+                                                <path d="M22 2 11 13" /><path d="m22 2-7 20-4-9-9-4 20-7Z" />
+                                            </svg>
+                                        </button>
+                                    </form>
+                                </>
+                            )}
+                        </div>
+                    )}
+                </>
+            );
+        }
+
         function EmpirexHomeAfterSignup() {
             const TEMP_ALLOW_HOME_WITHOUT_LOGIN = false;
             const [userName, setUserName] = useState(getUserNameFromContext);
+            const [lang, setLang] = useState(getLang);
+            useEffect(() => {
+                applyLangToDocument(lang);
+            }, [lang]);
+            useEffect(() => {
+                function onLang(e) { if (e?.detail?.lang) setLang(e.detail.lang); }
+                window.addEventListener("empirex:lang", onLang);
+                return () => window.removeEventListener("empirex:lang", onLang);
+            }, []);
             const [marketData, setMarketData] = useState({ fx: fallbackFx, stocks: fallbackStocks, source: "fallback" });
             const [lastUpdated, setLastUpdated] = useState(null);
             const [loading, setLoading] = useState(false);
@@ -3792,6 +4111,7 @@
                             if (section) section.scrollIntoView({ behavior: "smooth", block: "start" });
                         }}
                         onOpenPlaceholder={handleAction}
+                        lang={lang}
                     />
 
                     <main className="px-5 pb-10 relative z-10">
@@ -3908,6 +4228,7 @@
                             onConnected={(conn) => { setConnectedBroker(conn); setBrokerWizardOpen(false); }}
                         />
                     )}
+                    <SupportWidget lang={lang} />
                 </div>
             );
         }

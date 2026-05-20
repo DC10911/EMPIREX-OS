@@ -1446,6 +1446,80 @@ _bot_engine = BotEngine()
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+# ─── Support chat knowledge base (24/7 helpdesk) ────────────────────────────
+# Real Hebrew Q&A. Pattern-matches the user's message to an intent and
+# returns a personalized, contextual reply. Falls back to agent_brain for
+# trading/market questions and a friendly generic reply for everything else.
+SUPPORT_KB = [
+    {"intent":"greeting","keys":["שלום","היי","הי","בוקר","ערב","hi","hello","hey"],
+     "reply":"שלום {name}! 👋 אני הסוכן האישי שלך ב-EMPIREX. אני זמין 24/7 ועונה על כל שאלה — חיבור ברוקר, שינוי הגדרות, ניהול הבוט, הבנת המסחר. במה אעזור?"},
+    {"intent":"broker_connect","keys":["ברוקר","חיבור","mt4","mt5","metatrader","tradingview","חיבור ברוקר","איך לחבר","תחבר","התחברות"],
+     "reply":"כדי לחבר ברוקר {name}, לחץ על הכפתור 'חבר ברוקר' בעמוד הבית, או לחילופין לך ל-הגדרות → חשבון → חיבור ברוקרים. אנחנו תומכים ב-MT4, MT5, TradingView, Binance ועוד. תצטרך שם משתמש, סיסמה ושרת של הברוקר. הכל מוצפן בצד הלקוח. רוצה שאדריך אותך שלב-שלב?",
+     "actions":[{"type":"open","label":"חבר ברוקר עכשיו","target":"broker_wizard"}]},
+    {"intent":"language","keys":["שפה","שפות","language","english","תרגום","תרגם","להחליף שפה","לשנות שפה"],
+     "reply":"לשינוי שפה {name}: לחץ על הפרופיל שלך בפינה הימנית עליונה → בחר 'שפה' → בחר מתוך 35 שפות. השינוי תקף מיידית לכל המערכת — תפריטים, כפתורים, הודעות.",
+     "actions":[{"type":"navigate","label":"פתח הגדרות שפה","target":"settings:language"}]},
+    {"intent":"password","keys":["סיסמה","שכחתי","איפוס","reset","password","שינוי סיסמה"],
+     "reply":"לשינוי סיסמה {name}: לחץ על הפרופיל → הגדרות → אבטחה → 'שינוי סיסמה'. אם שכחת — חזור לעמוד הכניסה ולחץ 'שכחתי סיסמה' ותקבל קישור איפוס למייל."},
+    {"intent":"2fa","keys":["2fa","אימות דו","דו-שלבי","two factor","אימות שלבי"],
+     "reply":"להפעלת אימות דו-שלבי {name}: הגדרות → אבטחה → 'אימות דו-שלבי (2FA)' → 'הפעל'. סרוק את ה-QR באפליקציית Google Authenticator או Authy. זה מומלץ מאוד להגנה על החשבון."},
+    {"intent":"bot","keys":["בוט","אוטומציה","אסטרטגיה","הפעלת בוט","להפעיל בוט","להריץ בוט","איך בוט","bot"],
+     "reply":"הבוט {name} פועל אוטומטית אחרי שתחבר ברוקר ותגדיר אסטרטגיה. לך לטאב 'אוטומציה' מהתפריט העליון, בחר תכנית (תכנית A מאוזנת ביותר), קבע ניהול סיכון, ולחץ 'הפעל בוט'. כל עסקה נשמרת ביומן."},
+    {"intent":"agent","keys":["סוכן","ai agent","agent","סקירה","ניתוח שוק","המלצות"],
+     "reply":"ה-AI Agent {name} זמין בלשונית 'AI Agent' בתפריט. הוא נותן ניתוח שוק בזמן אמת, מדדי סיכון, אירועים קרובים בלוח הכלכלי, וצ'אט שיודע לענות על כל שוק/מניה/מטבע."},
+    {"intent":"markets","keys":["שוק","שווקים","חדשות","כתבות","מחיר","נסחר","trade"],
+     "reply":"לצפייה בשווקים {name}: טאב 'שווקים' מציג 10 כתבות מובילות מ-Reuters, Bloomberg, FT, CNBC ו-WSJ — כל כתבה עם תגית השפעה. עבור מחירי-זמן-אמת לחץ על כל מטבע/מניה בעמוד הבית."},
+    {"intent":"journal","keys":["יומן","יומן מסחר","היסטוריה","עסקאות","journal","trades"],
+     "reply":"יומן המסחר {name} בטאב 'יומן' — מראה לוח שנה עם כל יום מסחר, רווח/הפסד, KPIs יומיים, גרפים והמלצות AI. כל עסקה של הבוט נכנסת אוטומטית."},
+    {"intent":"billing","keys":["מחיר","תשלום","חשבונית","שדרוג","ביטול","מנוי","חיוב","subscription","price","cost","upgrade"],
+     "reply":"בכל מה שקשור למנוי {name}: לחץ פרופיל → הגדרות → 'חיוב ומנוי'. שם תראה את המנוי הפעיל, תוכל לעדכן כרטיס, להוריד חשבוניות, לשדרג ל-Enterprise או לבטל."},
+    {"intent":"notifications","keys":["התראות","התראה","notification","אימייל","sms","push"],
+     "reply":"לניהול התראות {name}: הגדרות → התראות. שם 7 מתגים שמאפשרים לבחור: מייל, Push לדפדפן, SMS, התראות בוט, חדשות שוק, AI ועדכוני מוצר."},
+    {"intent":"data","keys":["ייצוא","הורד נתונים","backup","גיבוי","export"],
+     "reply":"לייצוא כל הנתונים שלך {name}: הגדרות → חשבון → 'ייצוא נתונים'. תקבל קובץ ZIP עם היסטוריית עסקאות, הגדרות, יומן ו-snapshot מלא."},
+    {"intent":"delete","keys":["מחיקה","מחק","למחוק","סגור חשבון","delete account","close"],
+     "reply":"מחיקת חשבון {name} בלתי הפיכה. אם אתה בטוח: הגדרות → חשבון → 'מחיקת חשבון'. נמליץ לפני כן לייצא את הנתונים. אם זה רק זמני — אפשר להשהות מנוי במקום."},
+    {"intent":"error","keys":["שגיאה","תקלה","באג","לא עובד","crashed","שבור","לא נטען","לא פתח","error","bug","broken"],
+     "reply":"מצטער על התקלה {name}. אעבור איתך על זה: 1) רענן את הדף (Ctrl+F5). 2) בדוק שיש חיבור אינטרנט. 3) נסה דפדפן אחר. אם זה נמשך — תאר לי מה בדיוק קרה, באיזה דף, ואיזו הודעה הופיעה. אני אאתר את הבעיה."},
+    {"intent":"thanks","keys":["תודה","תודה רבה","thanks","ty"],
+     "reply":"בכיף {name}! 🙏 אני כאן 24/7 — חזור אליי בכל שאלה."},
+    {"intent":"who","keys":["מי אתה","מה זה","what are you","who are you","אתה רובוט","אתה אדם"],
+     "reply":"אני הסוכן האישי של {name} ב-EMPIREX OS — AI שבנוי לעזור לך בכל מה שקשור למערכת המסחר. אני יודע על הברוקרים, הבוט, השווקים, החשבון, האבטחה — וזמין 24/7. רוצה לשמוע מה אני יכול לעשות בשבילך?"},
+]
+
+def _match_support_intent(message: str) -> dict | None:
+    m = (message or "").lower()
+    for entry in SUPPORT_KB:
+        for k in entry["keys"]:
+            if k.lower() in m:
+                return entry
+    return None
+
+def build_support_reply(name: str, message: str, locale: str = "he", history: list | None = None) -> dict:
+    display_name = (name or "").strip() or "סוחר יקר"
+    entry = _match_support_intent(message)
+    if entry:
+        text = entry["reply"].replace("{name}", display_name)
+        return {"text": text, "intent": entry["intent"], "actions": entry.get("actions", [])}
+
+    # Trading/market questions → delegate to agent_brain
+    brain = _get_brain()
+    if brain:
+        try:
+            r = brain.process_chat(message, session_id=f"support_{display_name}", context={"source":"support"})
+            if r and r.get("text"):
+                return {"text": r["text"], "intent": "agent_brain", "actions": []}
+        except Exception:
+            pass
+
+    # Generic fallback
+    return {
+        "text": f"שאלה טובה {display_name}! עוד לא ניתחתי את הנושא הספציפי הזה, אבל אני יכול לעזור עם: חיבור ברוקר, הגדרת בוט, ניהול הגדרות, אבטחה, התראות, חיוב, ניתוח שוק וצפייה ביומן. תוכל לתאר מה אתה מנסה לעשות בדיוק?",
+        "intent": "fallback",
+        "actions": [],
+    }
+
+
 # ─── Stateless signed session tokens (survive DB wipes / redeploys) ─────────
 # Token format: base64url(JSON payload) + "." + base64url(HMAC-SHA256)
 # Payload: {"id":int,"name":str,"email":str,"phone":str,"exp":epoch_seconds}
@@ -1931,6 +2005,11 @@ class EmpirexHandler(SimpleHTTPRequestHandler):
             self._handle_agent_post(parsed)
             return
 
+        # ── Support chat (24/7 helpdesk) ────────────────────────────────
+        if parsed.path == "/api/support/chat":
+            self._handle_support_chat()
+            return
+
         self._json_response(404, {"ok": False, "error": "Route not found"})
 
     # ── Agent handlers ────────────────────────────────────────────────────
@@ -2389,6 +2468,23 @@ class EmpirexHandler(SimpleHTTPRequestHandler):
                 },
             },
         )
+
+    # ── Support chat (24/7 helpdesk AI) ──────────────────────────────────
+    def _handle_support_chat(self) -> None:
+        try:
+            payload = self._read_json_body()
+            name = str(payload.get("name", "")).strip()[:80]
+            message = str(payload.get("message", "")).strip()[:1000]
+            locale = str(payload.get("locale", "he")).strip().lower()[:5]
+            history = payload.get("history") or []
+            if not message:
+                self._json_response(400, {"ok": False, "error": "message required"})
+                return
+
+            reply = build_support_reply(name=name, message=message, locale=locale, history=history)
+            self._json_response(200, {"ok": True, "data": {"reply": reply["text"], "intent": reply["intent"], "actions": reply.get("actions", [])}})
+        except Exception as e:
+            self._json_response(500, {"ok": False, "error": str(e)})
 
     def _handle_resend_code(self) -> None:
         payload = self._read_json_body()
