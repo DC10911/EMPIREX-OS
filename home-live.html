@@ -116,14 +116,86 @@
         // ════════════════════════════════════════════════════════════════════════
         const RTL_LANGS = ["he","ar","fa","ur","yi"];
         const TRANSLATIONS = {
-            he: { home:"בית", markets:"שווקים", trade:"מסחר", automation:"אוטומציה", ai:"AI Agent", journal:"יומן", portfolio:"תיק", risk:"סיכון", settings:"הגדרות", notifications:"התראות", search_placeholder:'חפש מט"ח, מניה או סימבול...', welcome:"ברוכים הבאים", connect_broker:"חבר ברוקר", help_24_7:"עזרה 24/7", support_title:"הסוכן האישי שלך", support_intro:"שלום! איך קוראים לך?", name_label:"שם", continue:"המשך", type_message:"כתוב הודעה...", send:"שלח", mute:"השתק קול", unmute:"הפעל קול" },
-            en: { home:"Home", markets:"Markets", trade:"Trade", automation:"Automation", ai:"AI Agent", journal:"Journal", portfolio:"Portfolio", risk:"Risk", settings:"Settings", notifications:"Notifications", search_placeholder:"Search FX, stock or symbol...", welcome:"Welcome", connect_broker:"Connect Broker", help_24_7:"Help 24/7", support_title:"Your Personal Agent", support_intro:"Hi! What's your name?", name_label:"Name", continue:"Continue", type_message:"Type a message...", send:"Send", mute:"Mute voice", unmute:"Unmute voice" },
-            ar: { home:"الرئيسية", markets:"الأسواق", trade:"تداول", automation:"الأتمتة", ai:"وكيل AI", journal:"اليومية", portfolio:"المحفظة", risk:"المخاطر", settings:"الإعدادات", notifications:"الإشعارات", search_placeholder:"ابحث عن عملة أو سهم...", welcome:"مرحباً", connect_broker:"اربط وسيطاً", help_24_7:"دعم 24/7", support_title:"وكيلك الشخصي", support_intro:"مرحباً! ما اسمك؟", name_label:"الاسم", continue:"متابعة", type_message:"اكتب رسالة...", send:"إرسال", mute:"كتم الصوت", unmute:"تشغيل الصوت" },
-            ru: { home:"Главная", markets:"Рынки", trade:"Торговля", automation:"Автоматизация", ai:"AI-агент", journal:"Журнал", portfolio:"Портфель", risk:"Риск", settings:"Настройки", notifications:"Уведомления", search_placeholder:"Поиск валюты или акции...", welcome:"Добро пожаловать", connect_broker:"Подключить брокера", help_24_7:"Помощь 24/7", support_title:"Ваш личный агент", support_intro:"Привет! Как вас зовут?", name_label:"Имя", continue:"Продолжить", type_message:"Написать сообщение...", send:"Отправить", mute:"Отключить голос", unmute:"Включить голос" },
-            es: { home:"Inicio", markets:"Mercados", trade:"Operar", automation:"Automatización", ai:"Agente IA", journal:"Diario", portfolio:"Cartera", risk:"Riesgo", settings:"Ajustes", notifications:"Notificaciones", search_placeholder:"Buscar divisa o acción...", welcome:"Bienvenido", connect_broker:"Conectar bróker", help_24_7:"Ayuda 24/7", support_title:"Tu agente personal", support_intro:"¡Hola! ¿Cómo te llamas?", name_label:"Nombre", continue:"Continuar", type_message:"Escribe un mensaje...", send:"Enviar", mute:"Silenciar voz", unmute:"Activar voz" },
-            fr: { home:"Accueil", markets:"Marchés", trade:"Trader", automation:"Automatisation", ai:"Agent IA", journal:"Journal", portfolio:"Portefeuille", risk:"Risque", settings:"Paramètres", notifications:"Notifications", search_placeholder:"Rechercher une devise ou action...", welcome:"Bienvenue", connect_broker:"Connecter le courtier", help_24_7:"Aide 24/7", support_title:"Votre agent personnel", support_intro:"Bonjour ! Quel est votre nom ?", name_label:"Nom", continue:"Continuer", type_message:"Écrire un message...", send:"Envoyer", mute:"Couper la voix", unmute:"Activer la voix" },
-            de: { home:"Start", markets:"Märkte", trade:"Handeln", automation:"Automatisierung", ai:"KI-Agent", journal:"Tagebuch", portfolio:"Portfolio", risk:"Risiko", settings:"Einstellungen", notifications:"Benachrichtigungen", search_placeholder:"Suche Währung oder Aktie...", welcome:"Willkommen", connect_broker:"Broker verbinden", help_24_7:"Hilfe 24/7", support_title:"Ihr persönlicher Agent", support_intro:"Hallo! Wie heißen Sie?", name_label:"Name", continue:"Weiter", type_message:"Nachricht schreiben...", send:"Senden", mute:"Stumm", unmute:"Stimme an" },
-            zh: { home:"主页", markets:"市场", trade:"交易", automation:"自动化", ai:"AI助手", journal:"日志", portfolio:"投资组合", risk:"风险", settings:"设置", notifications:"通知", search_placeholder:"搜索货币或股票...", welcome:"欢迎", connect_broker:"连接经纪商", help_24_7:"全天候帮助", support_title:"您的个人助手", support_intro:"你好!请问您的名字?", name_label:"姓名", continue:"继续", type_message:"输入消息...", send:"发送", mute:"静音", unmute:"开启声音" },
+            he: { home:"בית", markets:"שווקים", trade:"מסחר", automation:"אוטומציה", ai:"AI Agent", journal:"יומן", portfolio:"תיק", risk:"סיכון", settings:"הגדרות", notifications:"התראות", search_placeholder:'חפש מט"ח, מניה או סימבול...', welcome:"ברוכים הבאים", connect_broker:"חבר ברוקר", help_24_7:"עזרה 24/7", support_title:"הסוכן האישי שלך", support_intro:"שלום! איך קוראים לך?", name_label:"שם", continue:"המשך", type_message:"כתוב הודעה...", send:"שלח", mute:"השתק קול", unmute:"הפעל קול",
+                command_online:"Command Center Online", hero_welcome:"ברוך הבא,", hero_sub:'מכאן אתה מנהל את סביבת העבודה שלך: מחירי מט״ח חיים, מניות מובילות, חיבור חשבונות, AI Agent, ניהול סיכון ופעולות מהירות — הכל במרכז אחד נקי.', connected_suffix:"מחובר", activate_ai:"הפעל AI Agent", risk_engine:"Risk Engine", change_btn:"שנה", disconnect_btn:"נתק", trades_word:"עסקאות", connected_at:"חובר",
+                ai_insight:"AI Insight", ready_to_run:"מוכן להפעלה", ai_insight_text:"לאחר חיבור ברוקר או מקור נתונים, הסוכן ינתח עבורך עסקאות, סיכונים, ביצועים ושינויים בשוק.",
+                setup_profile_title:"השלם פרופיל", setup_profile_desc:"הוסף פרטי מסחר והתאם את סביבת העבודה.",
+                setup_link_title:"חבר מקור נתונים", setup_link_desc:"חבר ברוקר, MT5 או מקור נתונים אמין.",
+                setup_risk_title:"קבע גבול סיכון", setup_risk_desc:"הגדר הפסד יומי, סיכון לעסקה ו־drawdown.",
+                setup_ws_title:"צור סביבת עבודה", setup_ws_desc:"בחר איך הדשבורד שלך יראה ויעבוד.",
+                live_label:"LIVE", last_update:"עדכון אחרון:", data_live:"נתוני שוק חיים · מתרענן כל 20 שניות", data_partial:"חלק מהנכסים חיים וחלק fallback", data_fb:"מציג fallback זמני אם ספק חיצוני לא זמין",
+                no_results:"לא נמצאו תוצאות לחיפוש", trader_pro:"Trader Pro"
+            },
+            en: { home:"Home", markets:"Markets", trade:"Trade", automation:"Automation", ai:"AI Agent", journal:"Journal", portfolio:"Portfolio", risk:"Risk", settings:"Settings", notifications:"Notifications", search_placeholder:"Search FX, stock or symbol...", welcome:"Welcome", connect_broker:"Connect Broker", help_24_7:"Help 24/7", support_title:"Your Personal Agent", support_intro:"Hi! What's your name?", name_label:"Name", continue:"Continue", type_message:"Type a message...", send:"Send", mute:"Mute voice", unmute:"Unmute voice",
+                command_online:"Command Center Online", hero_welcome:"Welcome,", hero_sub:"From here you control your workspace: live FX rates, top stocks, account connections, AI Agent, risk management and quick actions — all in one clean center.", connected_suffix:"connected", activate_ai:"Run AI Agent", risk_engine:"Risk Engine", change_btn:"Change", disconnect_btn:"Disconnect", trades_word:"trades", connected_at:"connected",
+                ai_insight:"AI Insight", ready_to_run:"Ready to run", ai_insight_text:"Once you connect a broker or data source, the agent will analyze your trades, risks, performance and market changes.",
+                setup_profile_title:"Complete profile", setup_profile_desc:"Add trading details and tune your workspace.",
+                setup_link_title:"Connect data source", setup_link_desc:"Connect a broker, MT5 or a trusted data source.",
+                setup_risk_title:"Set risk limits", setup_risk_desc:"Define daily loss, per-trade risk and drawdown.",
+                setup_ws_title:"Build workspace", setup_ws_desc:"Choose how your dashboard looks and works.",
+                live_label:"LIVE", last_update:"Last update:", data_live:"Live market data · refreshes every 20s", data_partial:"Some assets live, others fallback", data_fb:"Showing temporary fallback if provider is unavailable",
+                no_results:"No search results", trader_pro:"Trader Pro"
+            },
+            ar: { home:"الرئيسية", markets:"الأسواق", trade:"تداول", automation:"الأتمتة", ai:"وكيل AI", journal:"اليومية", portfolio:"المحفظة", risk:"المخاطر", settings:"الإعدادات", notifications:"الإشعارات", search_placeholder:"ابحث عن عملة أو سهم...", welcome:"مرحباً", connect_broker:"اربط وسيطاً", help_24_7:"دعم 24/7", support_title:"وكيلك الشخصي", support_intro:"مرحباً! ما اسمك؟", name_label:"الاسم", continue:"متابعة", type_message:"اكتب رسالة...", send:"إرسال", mute:"كتم الصوت", unmute:"تشغيل الصوت",
+                command_online:"مركز التحكم متصل", hero_welcome:"أهلاً،", hero_sub:"من هنا تدير مساحة عملك: أسعار العملات الحية، الأسهم الرائدة، ربط الحسابات، وكيل AI، إدارة المخاطر وإجراءات سريعة — كل ذلك في مركز واحد نظيف.", connected_suffix:"متصل", activate_ai:"تشغيل وكيل AI", risk_engine:"محرك المخاطر", change_btn:"تغيير", disconnect_btn:"قطع", trades_word:"صفقات", connected_at:"تم الربط",
+                ai_insight:"رؤى AI", ready_to_run:"جاهز للتشغيل", ai_insight_text:"بمجرد ربط وسيط أو مصدر بيانات، سيحلل الوكيل صفقاتك ومخاطرك وأداءك وتغيرات السوق.",
+                setup_profile_title:"أكمل الملف الشخصي", setup_profile_desc:"أضف تفاصيل التداول واضبط مساحة العمل.",
+                setup_link_title:"اربط مصدر بيانات", setup_link_desc:"اربط وسيطاً أو MT5 أو مصدر بيانات موثوقاً.",
+                setup_risk_title:"حدد حدود المخاطر", setup_risk_desc:"حدد الخسارة اليومية، مخاطرة الصفقة و-drawdown.",
+                setup_ws_title:"ابنِ مساحة العمل", setup_ws_desc:"اختر شكل وعمل لوحة التحكم.",
+                live_label:"مباشر", last_update:"آخر تحديث:", data_live:"بيانات سوق حية · تحديث كل 20 ثانية", data_partial:"جزء من الأصول حية والآخر احتياطي", data_fb:"عرض احتياطي مؤقت إذا كان المزود غير متاح",
+                no_results:"لا توجد نتائج", trader_pro:"Trader Pro"
+            },
+            ru: { home:"Главная", markets:"Рынки", trade:"Торговля", automation:"Автоматизация", ai:"AI-агент", journal:"Журнал", portfolio:"Портфель", risk:"Риск", settings:"Настройки", notifications:"Уведомления", search_placeholder:"Поиск валюты или акции...", welcome:"Добро пожаловать", connect_broker:"Подключить брокера", help_24_7:"Помощь 24/7", support_title:"Ваш личный агент", support_intro:"Привет! Как вас зовут?", name_label:"Имя", continue:"Продолжить", type_message:"Написать сообщение...", send:"Отправить", mute:"Отключить голос", unmute:"Включить голос",
+                command_online:"Командный центр онлайн", hero_welcome:"Добро пожаловать,", hero_sub:"Отсюда вы управляете рабочим пространством: курсы валют в реальном времени, топ акций, подключение счетов, AI-агент, управление рисками и быстрые действия — всё в одном центре.", connected_suffix:"подключён", activate_ai:"Запустить AI-агента", risk_engine:"Risk Engine", change_btn:"Изменить", disconnect_btn:"Отключить", trades_word:"сделок", connected_at:"подключено",
+                ai_insight:"AI Insight", ready_to_run:"Готов к запуску", ai_insight_text:"После подключения брокера или источника данных агент проанализирует сделки, риски, результаты и изменения рынка.",
+                setup_profile_title:"Заполните профиль", setup_profile_desc:"Добавьте торговые данные и настройте рабочее пространство.",
+                setup_link_title:"Подключите источник данных", setup_link_desc:"Подключите брокера, MT5 или надёжный источник данных.",
+                setup_risk_title:"Установите лимиты риска", setup_risk_desc:"Дневной убыток, риск на сделку и drawdown.",
+                setup_ws_title:"Создайте рабочее пространство", setup_ws_desc:"Выберите вид и поведение дашборда.",
+                live_label:"LIVE", last_update:"Последнее обновление:", data_live:"Данные рынка в реальном времени · обновление каждые 20 сек", data_partial:"Часть активов в реальном времени, часть — резерв", data_fb:"Показ временного резерва, если провайдер недоступен",
+                no_results:"Ничего не найдено", trader_pro:"Trader Pro"
+            },
+            es: { home:"Inicio", markets:"Mercados", trade:"Operar", automation:"Automatización", ai:"Agente IA", journal:"Diario", portfolio:"Cartera", risk:"Riesgo", settings:"Ajustes", notifications:"Notificaciones", search_placeholder:"Buscar divisa o acción...", welcome:"Bienvenido", connect_broker:"Conectar bróker", help_24_7:"Ayuda 24/7", support_title:"Tu agente personal", support_intro:"¡Hola! ¿Cómo te llamas?", name_label:"Nombre", continue:"Continuar", type_message:"Escribe un mensaje...", send:"Enviar", mute:"Silenciar voz", unmute:"Activar voz",
+                command_online:"Centro de Mando Online", hero_welcome:"Bienvenido,", hero_sub:"Desde aquí controlas tu espacio: precios FX en vivo, principales acciones, conexión de cuentas, Agente IA, gestión de riesgo y acciones rápidas — todo en un único centro.", connected_suffix:"conectado", activate_ai:"Activar Agente IA", risk_engine:"Risk Engine", change_btn:"Cambiar", disconnect_btn:"Desconectar", trades_word:"operaciones", connected_at:"conectado",
+                ai_insight:"AI Insight", ready_to_run:"Listo para ejecutar", ai_insight_text:"Una vez conectes un bróker o fuente de datos, el agente analizará tus operaciones, riesgos, rendimiento y cambios del mercado.",
+                setup_profile_title:"Completar perfil", setup_profile_desc:"Añade detalles de trading y ajusta tu espacio.",
+                setup_link_title:"Conectar fuente de datos", setup_link_desc:"Conecta un bróker, MT5 o fuente fiable.",
+                setup_risk_title:"Definir límites de riesgo", setup_risk_desc:"Define pérdida diaria, riesgo por operación y drawdown.",
+                setup_ws_title:"Crear espacio", setup_ws_desc:"Elige cómo se ve y funciona tu panel.",
+                live_label:"EN VIVO", last_update:"Última actualización:", data_live:"Datos de mercado en vivo · refresca cada 20s", data_partial:"Algunos activos en vivo, otros respaldo", data_fb:"Mostrando respaldo temporal si el proveedor no responde",
+                no_results:"Sin resultados", trader_pro:"Trader Pro"
+            },
+            fr: { home:"Accueil", markets:"Marchés", trade:"Trader", automation:"Automatisation", ai:"Agent IA", journal:"Journal", portfolio:"Portefeuille", risk:"Risque", settings:"Paramètres", notifications:"Notifications", search_placeholder:"Rechercher une devise ou action...", welcome:"Bienvenue", connect_broker:"Connecter le courtier", help_24_7:"Aide 24/7", support_title:"Votre agent personnel", support_intro:"Bonjour ! Quel est votre nom ?", name_label:"Nom", continue:"Continuer", type_message:"Écrire un message...", send:"Envoyer", mute:"Couper la voix", unmute:"Activer la voix",
+                command_online:"Centre de commande en ligne", hero_welcome:"Bienvenue,", hero_sub:"D'ici vous gérez votre espace : taux FX en direct, principales actions, connexion des comptes, Agent IA, gestion du risque et actions rapides — le tout dans un centre unique.", connected_suffix:"connecté", activate_ai:"Lancer l'agent IA", risk_engine:"Risk Engine", change_btn:"Modifier", disconnect_btn:"Déconnecter", trades_word:"trades", connected_at:"connecté",
+                ai_insight:"AI Insight", ready_to_run:"Prêt à lancer", ai_insight_text:"Après avoir connecté un courtier ou une source de données, l'agent analysera vos trades, risques, performances et changements du marché.",
+                setup_profile_title:"Compléter le profil", setup_profile_desc:"Ajoutez vos données de trading et ajustez l'espace.",
+                setup_link_title:"Connecter une source", setup_link_desc:"Connectez un courtier, MT5 ou source fiable.",
+                setup_risk_title:"Définir le risque", setup_risk_desc:"Perte quotidienne, risque par trade et drawdown.",
+                setup_ws_title:"Créer un espace", setup_ws_desc:"Choisissez l'apparence et le fonctionnement.",
+                live_label:"EN DIRECT", last_update:"Dernière mise à jour :", data_live:"Données de marché en direct · rafraîchit toutes les 20s", data_partial:"Certains actifs en direct, d'autres en repli", data_fb:"Repli temporaire si le fournisseur est indisponible",
+                no_results:"Aucun résultat", trader_pro:"Trader Pro"
+            },
+            de: { home:"Start", markets:"Märkte", trade:"Handeln", automation:"Automatisierung", ai:"KI-Agent", journal:"Tagebuch", portfolio:"Portfolio", risk:"Risiko", settings:"Einstellungen", notifications:"Benachrichtigungen", search_placeholder:"Suche Währung oder Aktie...", welcome:"Willkommen", connect_broker:"Broker verbinden", help_24_7:"Hilfe 24/7", support_title:"Ihr persönlicher Agent", support_intro:"Hallo! Wie heißen Sie?", name_label:"Name", continue:"Weiter", type_message:"Nachricht schreiben...", send:"Senden", mute:"Stumm", unmute:"Stimme an",
+                command_online:"Kommandozentrale Online", hero_welcome:"Willkommen,", hero_sub:"Von hier aus steuern Sie Ihren Arbeitsbereich: Live-FX-Kurse, Top-Aktien, Konto-Verbindungen, KI-Agent, Risikomanagement und Schnellaktionen — alles in einem Zentrum.", connected_suffix:"verbunden", activate_ai:"KI-Agent starten", risk_engine:"Risk Engine", change_btn:"Ändern", disconnect_btn:"Trennen", trades_word:"Trades", connected_at:"verbunden",
+                ai_insight:"AI Insight", ready_to_run:"Bereit zum Start", ai_insight_text:"Nach Verbindung mit einem Broker oder einer Datenquelle analysiert der Agent Ihre Trades, Risiken, Leistung und Marktveränderungen.",
+                setup_profile_title:"Profil vervollständigen", setup_profile_desc:"Trading-Daten hinzufügen und Arbeitsbereich anpassen.",
+                setup_link_title:"Datenquelle verbinden", setup_link_desc:"Broker, MT5 oder vertrauenswürdige Quelle verbinden.",
+                setup_risk_title:"Risikogrenzen festlegen", setup_risk_desc:"Tagesverlust, Risiko pro Trade und Drawdown.",
+                setup_ws_title:"Arbeitsbereich erstellen", setup_ws_desc:"Wie Ihr Dashboard aussieht und funktioniert.",
+                live_label:"LIVE", last_update:"Letzte Aktualisierung:", data_live:"Live-Marktdaten · alle 20s aktualisiert", data_partial:"Einige Werte live, andere Ersatz", data_fb:"Temporärer Ersatz, falls Anbieter nicht verfügbar",
+                no_results:"Keine Ergebnisse", trader_pro:"Trader Pro"
+            },
+            zh: { home:"主页", markets:"市场", trade:"交易", automation:"自动化", ai:"AI助手", journal:"日志", portfolio:"投资组合", risk:"风险", settings:"设置", notifications:"通知", search_placeholder:"搜索货币或股票...", welcome:"欢迎", connect_broker:"连接经纪商", help_24_7:"全天候帮助", support_title:"您的个人助手", support_intro:"你好!请问您的名字?", name_label:"姓名", continue:"继续", type_message:"输入消息...", send:"发送", mute:"静音", unmute:"开启声音",
+                command_online:"指挥中心在线", hero_welcome:"欢迎,", hero_sub:"从这里管理您的工作区:实时外汇汇率、热门股票、账户连接、AI助手、风险管理和快速操作 — 全部集中在一个简洁中心。", connected_suffix:"已连接", activate_ai:"启动 AI 助手", risk_engine:"风险引擎", change_btn:"更改", disconnect_btn:"断开", trades_word:"笔交易", connected_at:"已连接",
+                ai_insight:"AI 洞察", ready_to_run:"准备就绪", ai_insight_text:"连接经纪商或数据源后,AI 将分析您的交易、风险、表现及市场变化。",
+                setup_profile_title:"完善资料", setup_profile_desc:"添加交易信息并调整您的工作区。",
+                setup_link_title:"连接数据源", setup_link_desc:"连接经纪商、MT5 或可信数据源。",
+                setup_risk_title:"设置风险上限", setup_risk_desc:"定义每日亏损、单笔风险和回撤。",
+                setup_ws_title:"创建工作区", setup_ws_desc:"选择仪表板的外观和功能。",
+                live_label:"实时", last_update:"最后更新:", data_live:"实时市场数据 · 每20秒刷新", data_partial:"部分资产实时,部分为备用", data_fb:"如提供商不可用,显示临时备用数据",
+                no_results:"无搜索结果", trader_pro:"Trader Pro"
+            },
         };
         function getLang(){ try { return localStorage.getItem("empirex_lang") || "he"; } catch { return "he"; } }
         function t(key, lang){
@@ -375,7 +447,7 @@
             );
         }
 
-        function Header({ userName = "דניאל כהן", active = "בית", onNavigate = () => { }, searchQuery = "", onSearchChange = () => { }, onSearchSubmit = () => { }, onOpenPlaceholder = () => { }, lang = "he" }) {
+        function Header({ userName = "Trader", active = "בית", onNavigate = () => { }, searchQuery = "", onSearchChange = () => { }, onSearchSubmit = () => { }, onOpenPlaceholder = () => { }, lang = "he" }) {
 
             return (
                 <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/88 backdrop-blur-2xl" dir={RTL_LANGS.includes(lang) ? "rtl" : "ltr"}>
@@ -537,7 +609,7 @@
                     >
                         {visible.length
                             ? visible.map((item) => <MarketCard key={item.symbol} item={item} type={type} onOpenChart={onOpenChart} />)
-                            : <div className="col-span-full rounded-2xl border border-slate-200 bg-white p-5 text-center text-sm font-bold text-slate-500">לא נמצאו תוצאות לחיפוש</div>}
+                            : <div className="col-span-full rounded-2xl border border-slate-200 bg-white p-5 text-center text-sm font-bold text-slate-500">{t("no_results", (typeof getLang==="function"?getLang():"he"))}</div>}
                     </div>
 
                     {items.length > pageSize && (
@@ -562,33 +634,33 @@
             );
         }
 
-        function Hero({ userName, onAction = () => { }, connectedBroker = null, onDisconnect = () => {} }) {
+        function Hero({ userName, onAction = () => { }, connectedBroker = null, onDisconnect = () => {}, lang = "he" }) {
             return (
             <section className="mx-auto max-w-[1320px] pt-8 text-center">
                     <div className="mx-auto mb-6 flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-slate-500 shadow-sm backdrop-blur">
                         <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                        Command Center Online
+                        {t("command_online", lang)}
                     </div>
                     <h1 className="text-4xl font-black tracking-[-0.06em] text-[#07124A] md:text-6xl">
-                        ברוך הבא, <span className="bg-gradient-to-l from-[#13C9C7] via-[#178BFF] to-[#2457F5] bg-clip-text text-transparent">{userName.split(" ")[0]}</span>.
+                        {t("hero_welcome", lang)} <span className="bg-gradient-to-l from-[#13C9C7] via-[#178BFF] to-[#2457F5] bg-clip-text text-transparent">{(userName || "").split(" ")[0]}</span>.
                     </h1>
                     <p className="mx-auto mt-4 max-w-3xl text-base font-semibold leading-7 text-slate-600">
-                        מכאן אתה מנהל את סביבת העבודה שלך: מחירי מט״ח חיים, מניות מובילות, חיבור חשבונות, AI Agent, ניהול סיכון ופעולות מהירות — הכל במרכז אחד נקי.
+                        {t("hero_sub", lang)}
                     </p>
                     <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
                         <button onClick={() => onAction("חבר ברוקר")}
                             className={`group rounded-2xl px-6 py-3 text-sm font-black text-white shadow-[0_22px_55px_rgba(11,77,255,.28)] transition hover:-translate-y-1 hover:shadow-[0_28px_75px_rgba(11,77,255,.35)] ${connectedBroker ? "bg-emerald-500 shadow-[0_22px_55px_rgba(16,185,129,.28)]" : "bg-[#0B4DFF]"}`}>
-                            {connectedBroker ? `✓ ${connectedBroker.brokerLabel}${connectedBroker.platformLabel ? ` / ${connectedBroker.platformLabel}` : ""} מחובר` : "חבר ברוקר"}
+                            {connectedBroker ? `✓ ${connectedBroker.brokerLabel}${connectedBroker.platformLabel ? ` / ${connectedBroker.platformLabel}` : ""} ${t("connected_suffix", lang)}` : t("connect_broker", lang)}
                             <Icon name="link" className="mr-2 inline h-5 w-5" />
                         </button>
                         <button onClick={() => onAction("הפעל AI Agent")}
                             className="rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-black text-[#07124A] shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
-                            הפעל AI Agent
+                            {t("activate_ai", lang)}
                             <Icon name="ai" className="mr-2 inline h-5 w-5 text-[#0B4DFF]" />
                         </button>
                         <button onClick={() => onAction("Risk Engine")}
                             className="rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-black text-[#07124A] shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
-                            Risk Engine
+                            {t("risk_engine", lang)}
                             <Icon name="risk" className="mr-2 inline h-5 w-5 text-[#0B4DFF]" />
                         </button>
                     </div>
@@ -605,7 +677,7 @@
                             )}
                             <span className="text-emerald-200">·</span>
                             <span className="text-xs font-semibold text-emerald-500">
-                                חובר {connectedBroker.connectedAt
+                                {t("connected_at", lang)} {connectedBroker.connectedAt
                                     ? new Intl.DateTimeFormat("he-IL", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" }).format(new Date(connectedBroker.connectedAt))
                                     : ""}
                             </span>
@@ -620,22 +692,22 @@
                             </span>
                             <span className="text-emerald-200">·</span>
                             <span className="text-xs font-semibold text-emerald-600">
-                                📈 {connectedBroker.totalTrades != null ? connectedBroker.totalTrades.toLocaleString() + " עסקאות" : "—"}
+                                📈 {connectedBroker.totalTrades != null ? connectedBroker.totalTrades.toLocaleString() + " " + t("trades_word", lang) : "—"}
                             </span>
-                            <button onClick={() => onAction("חבר ברוקר")} className="mr-1 rounded-lg px-2 py-0.5 text-[11px] font-black text-emerald-600 hover:bg-emerald-100 transition">שנה</button>
-                            <button onClick={onDisconnect} className="rounded-lg px-2 py-0.5 text-[11px] font-black text-red-400 hover:bg-red-50 transition">נתק</button>
+                            <button onClick={() => onAction("חבר ברוקר")} className="mr-1 rounded-lg px-2 py-0.5 text-[11px] font-black text-emerald-600 hover:bg-emerald-100 transition">{t("change_btn", lang)}</button>
+                            <button onClick={onDisconnect} className="rounded-lg px-2 py-0.5 text-[11px] font-black text-red-400 hover:bg-red-50 transition">{t("disconnect_btn", lang)}</button>
                         </div>
                     )}
                 </section>
             );
         }
 
-        function SetupCards({ onAction = () => { } }) {
+        function SetupCards({ onAction = () => { }, lang = "he" }) {
             const cards = [
-                ["user", "השלם פרופיל", "הוסף פרטי מסחר והתאם את סביבת העבודה.", "1"],
-                ["link", "חבר מקור נתונים", "חבר ברוקר, MT5 או מקור נתונים אמין.", "2"],
-                ["shield", "קבע גבול סיכון", "הגדר הפסד יומי, סיכון לעסקה ו־drawdown.", "3"],
-                ["chart", "צור סביבת עבודה", "בחר איך הדשבורד שלך יראה ויעבוד.", "4"],
+                ["user",   t("setup_profile_title", lang), t("setup_profile_desc", lang), "1"],
+                ["link",   t("setup_link_title", lang),    t("setup_link_desc", lang),    "2"],
+                ["shield", t("setup_risk_title", lang),    t("setup_risk_desc", lang),    "3"],
+                ["chart",  t("setup_ws_title", lang),      t("setup_ws_desc", lang),      "4"],
             ];
 
             return (
@@ -654,7 +726,7 @@
             );
         }
 
-        function AiInsight({ onAction = () => { } }) {
+        function AiInsight({ onAction = () => { }, lang = "he" }) {
             return (
             <section className="mx-auto max-w-[760px] rounded-[1.6rem] border border-white/80 bg-white/72 p-4 shadow-[0_16px_55px_rgba(7,18,74,.06)] backdrop-blur-xl">
                     <div className="flex items-center gap-4">
@@ -663,12 +735,12 @@
                         </div>
                         <div className="min-w-0 flex-1">
                             <div className="flex items-center justify-between gap-3">
-                                <h3 className="text-xl font-black text-[#07124A]">AI Insight</h3>
+                                <h3 className="text-xl font-black text-[#07124A]">{t("ai_insight", lang)}</h3>
                                 <button onClick={() => onAction("AI Insight")}
-                                    className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-[#0B4DFF]">מוכן להפעלה</button>
+                                    className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-[#0B4DFF]">{t("ready_to_run", lang)}</button>
                             </div>
                             <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-                                לאחר חיבור ברוקר או מקור נתונים, הסוכן ינתח עבורך עסקאות, סיכונים, ביצועים ושינויים בשוק.
+                                {t("ai_insight_text", lang)}
                             </p>
                         </div>
                     </div>
@@ -686,7 +758,7 @@
             if (stored && stored.trim()) {
                 return stored;
             }
-            return "דניאל כהן";
+            return "Trader";
         }
 
         // ── Broker Wizard ────────────────────────────────────────────────────────
@@ -4185,7 +4257,7 @@
                         ) : activeSection === "הגדרות" ? (
                             <SettingsSection userName={userName} setUserName={setUserName} />
                         ) : (<>
-                        <Hero userName={userName} onAction={handleAction} connectedBroker={connectedBroker} onDisconnect={handleDisconnectBroker} />
+                        <Hero userName={userName} onAction={handleAction} connectedBroker={connectedBroker} onDisconnect={handleDisconnectBroker} lang={lang} />
 
                         <div className="mx-auto mt-7 flex max-w-[1320px] flex-wrap items-center justify-between gap-4 px-2">
                             <div className="flex items-center gap-3 text-sm font-bold text-slate-500">
@@ -4193,11 +4265,11 @@
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
                                 </span>
-                                <span className="text-emerald-600 font-black text-xs">LIVE</span>
+                                <span className="text-emerald-600 font-black text-xs">{t("live_label", lang)}</span>
                                 <span className="text-slate-300">•</span>
-                                <span>עדכון אחרון: {dateLabel}</span>
+                                <span>{t("last_update", lang)} {dateLabel}</span>
                                 <span className="text-slate-300">•</span>
-                                <span>{marketData.source === "live-api" ? "נתוני שוק חיים · מתרענן כל 20 שניות" : marketData.source === "partial-fallback" ? "חלק מהנכסים חיים וחלק fallback" : "מציג fallback זמני אם ספק חיצוני לא זמין"}</span>
+                                <span>{marketData.source === "live-api" ? t("data_live", lang) : marketData.source === "partial-fallback" ? t("data_partial", lang) : t("data_fb", lang)}</span>
                             </div>
                             <button onClick={refreshData} disabled={loading}
                                 className={`flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-black shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-70 ${refreshed ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-[#07124A]"}`}>
@@ -4252,8 +4324,8 @@
                                 onOpenChart={(item) => handleOpenChart(item, 'stock')}
                             />
 
-                            <SetupCards onAction={handleAction} />
-                            <AiInsight onAction={handleAction} />
+                            <SetupCards onAction={handleAction} lang={lang} />
+                            <AiInsight onAction={handleAction} lang={lang} />
                         </div>
                         </>)}
                     </main>
