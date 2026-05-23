@@ -1,0 +1,1689 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EMPIREX | סורק מניות AI מתקדם</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <style>
+    :root {
+      --bg: #0a0e1a;
+      --bg2: #0f1525;
+      --bg3: #141c2e;
+      --card: #131929;
+      --card2: #1a2236;
+      --border: #1e2d4a;
+      --accent: #00d4ff;
+      --accent2: #7c3aed;
+      --green: #00e676;
+      --red: #ff4757;
+      --yellow: #ffd60a;
+      --text: #e2e8f0;
+      --text2: #94a3b8;
+      --text3: #64748b;
+      --glow: 0 0 20px rgba(0,212,255,0.3);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 32px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(10px);
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 1.4rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .logo span { color: var(--accent); }
+    .logo-badge {
+      background: linear-gradient(135deg, var(--accent2), var(--accent));
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+    .header-nav a {
+      color: var(--text2);
+      text-decoration: none;
+      font-size: 0.85rem;
+      transition: color .2s;
+      padding: 6px 12px;
+      border-radius: 8px;
+    }
+    .header-nav a:hover { color: var(--accent); background: rgba(0,212,255,0.08); }
+
+    /* ── Main Layout ── */
+    .main-layout {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      height: calc(100vh - 61px);
+      overflow: hidden;
+    }
+
+    /* ── Left Panel (Chat) ── */
+    .chat-panel {
+      background: var(--bg2);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .chat-header {
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .chat-header h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+    .chat-header p { font-size: 0.8rem; color: var(--text2); line-height: 1.5; }
+
+    .examples {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .example-chip {
+      padding: 5px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--card2);
+      font-size: 0.78rem;
+      color: var(--text2);
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .example-chip:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(0,212,255,0.08);
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+    .chat-messages::-webkit-scrollbar { width: 4px; }
+    .chat-messages::-webkit-scrollbar-track { background: transparent; }
+    .chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .msg {
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      animation: fadeIn .3s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } }
+    .msg.user {
+      background: linear-gradient(135deg, rgba(124,58,237,.25), rgba(0,212,255,.15));
+      border: 1px solid rgba(0,212,255,.2);
+      align-self: flex-start;
+      max-width: 95%;
+    }
+    .msg.bot {
+      background: var(--card);
+      border: 1px solid var(--border);
+      align-self: flex-end;
+      max-width: 95%;
+    }
+    .msg.system {
+      background: rgba(0,212,255,.06);
+      border: 1px solid rgba(0,212,255,.15);
+      color: var(--text2);
+      font-size: 0.78rem;
+      text-align: center;
+    }
+    .msg .ticker-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, var(--accent2), var(--accent));
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .chat-input-area {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+    }
+    .chat-input-area input {
+      flex: 1;
+      background: var(--card2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 11px 16px;
+      color: var(--text);
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color .2s;
+      font-family: inherit;
+    }
+    .chat-input-area input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,212,255,.1); }
+    .chat-input-area input::placeholder { color: var(--text3); }
+    .chat-input-area input:disabled { opacity: 0.5; }
+    .send-btn {
+      background: linear-gradient(135deg, var(--accent2), var(--accent));
+      border: none;
+      border-radius: 10px;
+      padding: 11px 18px;
+      color: white;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all .2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .send-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--glow); }
+    .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .send-btn span { font-size: 0.8rem; font-weight: 600; }
+
+    /* ── Right Panel (Analysis) ── */
+    .analysis-panel {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    /* Welcome screen */
+    .welcome-screen {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      padding: 40px;
+      text-align: center;
+    }
+    .welcome-screen .big-icon {
+      font-size: 5rem;
+      filter: drop-shadow(0 0 30px rgba(0,212,255,.4));
+      animation: pulse 3s infinite;
+    }
+    @keyframes pulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.05);} }
+    .welcome-screen h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .welcome-screen p { color: var(--text2); max-width: 480px; line-height: 1.7; }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      max-width: 600px;
+      margin-top: 8px;
+    }
+    .feature-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+    .feature-card .icon { font-size: 1.5rem; margin-bottom: 8px; }
+    .feature-card .label { font-size: 0.78rem; color: var(--text2); }
+
+    /* Analysis progress area */
+    .analysis-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+    .analysis-content::-webkit-scrollbar { width: 6px; }
+    .analysis-content::-webkit-scrollbar-track { background: transparent; }
+    .analysis-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* Stock info header */
+    .stock-header-card {
+      background: linear-gradient(135deg, var(--card2), var(--card));
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 20px;
+    }
+    .stock-name { font-size: 1.6rem; font-weight: 800; }
+    .stock-ticker { color: var(--accent); font-size: 1rem; font-weight: 600; margin-bottom: 4px; }
+    .stock-sector { color: var(--text2); font-size: 0.82rem; }
+    .stock-price-section { text-align: left; }
+    .stock-price { font-size: 2.2rem; font-weight: 800; color: var(--accent); }
+    .stock-change { font-size: 0.9rem; margin-top: 4px; }
+    .positive { color: var(--green); }
+    .negative { color: var(--red); }
+
+    /* Stats row */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+    }
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      transition: border-color .2s;
+    }
+    .stat-card:hover { border-color: rgba(0,212,255,.3); }
+    .stat-label { font-size: 0.72rem; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .stat-value { font-size: 1.1rem; font-weight: 700; color: var(--text); }
+    .stat-value.green { color: var(--green); }
+    .stat-value.red { color: var(--red); }
+    .stat-value.accent { color: var(--accent); }
+    .stat-sub { font-size: 0.7rem; color: var(--text3); margin-top: 2px; }
+
+    /* Progress steps */
+    .progress-section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 24px;
+    }
+    .progress-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .progress-bar-container {
+      background: var(--bg3);
+      border-radius: 10px;
+      height: 8px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent2), var(--accent));
+      border-radius: 10px;
+      transition: width .6s cubic-bezier(.4,0,.2,1);
+      box-shadow: 0 0 10px rgba(0,212,255,.4);
+    }
+    .steps-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .step-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      transition: background .2s;
+      font-size: 0.82rem;
+    }
+    .step-item.active { background: rgba(0,212,255,.07); }
+    .step-item.done { opacity: 0.7; }
+    .step-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      flex-shrink: 0;
+    }
+    .step-icon.waiting { background: var(--bg3); border: 1px solid var(--border); color: var(--text3); }
+    .step-icon.running {
+      background: rgba(0,212,255,.1);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      animation: spin 1.5s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .step-icon.done { background: rgba(0,230,118,.1); border: 1px solid var(--green); color: var(--green); }
+    .step-icon.error { background: rgba(255,71,87,.1); border: 1px solid var(--red); color: var(--red); }
+    .step-text { flex: 1; color: var(--text2); }
+    .step-text.active { color: var(--text); font-weight: 500; }
+
+    /* Chart section */
+    .chart-section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 24px;
+    }
+    .section-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-title .badge {
+      background: rgba(0,212,255,.12);
+      color: var(--accent);
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+    }
+    .chart-canvas-wrapper {
+      position: relative;
+      height: 280px;
+    }
+
+    /* Indicators grid */
+    .indicators-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    .indicator-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      transition: all .2s;
+    }
+    .indicator-card:hover { border-color: rgba(0,212,255,.3); transform: translateY(-1px); }
+    .ind-name { font-size: 0.72rem; color: var(--text3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .ind-value { font-size: 1.2rem; font-weight: 800; margin: 6px 0 4px; }
+    .ind-signal {
+      font-size: 0.72rem;
+      padding: 2px 8px;
+      border-radius: 20px;
+      display: inline-block;
+    }
+    .ind-signal.bullish { background: rgba(0,230,118,.12); color: var(--green); }
+    .ind-signal.bearish { background: rgba(255,71,87,.12); color: var(--red); }
+    .ind-signal.neutral { background: rgba(255,214,10,.12); color: var(--yellow); }
+
+    /* Moving averages table */
+    .ma-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .ma-table th {
+      text-align: right;
+      padding: 8px 12px;
+      color: var(--text3);
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+    }
+    .ma-table td { padding: 8px 12px; border-bottom: 1px solid rgba(30,45,74,.5); }
+    .ma-table tr:last-child td { border-bottom: none; }
+    .ma-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 0.72rem;
+    }
+    .ma-tag.above { background: rgba(0,230,118,.1); color: var(--green); }
+    .ma-tag.below { background: rgba(255,71,87,.1); color: var(--red); }
+
+    /* Fundamentals table */
+    .fund-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px;
+    }
+    .fund-item {
+      background: var(--bg3);
+      border-radius: 8px;
+      padding: 10px 14px;
+    }
+    .fund-item .fl { font-size: 0.7rem; color: var(--text3); text-transform: uppercase; margin-bottom: 4px; }
+    .fund-item .fv { font-size: 0.95rem; font-weight: 700; }
+
+    /* Report section */
+    .report-section {
+      background: var(--card);
+      border: 1px solid rgba(0,212,255,.2);
+      border-radius: 16px;
+      padding: 24px 28px;
+      box-shadow: 0 0 30px rgba(0,212,255,.08);
+    }
+    .report-content {
+      color: var(--text2);
+      line-height: 1.8;
+      font-size: 0.85rem;
+      white-space: pre-wrap;
+      font-family: 'Segoe UI', sans-serif;
+    }
+    .report-content h1, .report-content h2 {
+      color: var(--accent);
+      margin: 16px 0 8px;
+      font-size: 1rem;
+    }
+
+    /* Export buttons */
+    .export-btns {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+    .export-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--card2);
+      color: var(--text2);
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .export-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,.06); }
+
+    /* Recommendation banner */
+    .rec-banner {
+      border-radius: 12px;
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .rec-banner.buy { background: rgba(0,230,118,.08); border: 2px solid rgba(0,230,118,.3); }
+    .rec-banner.sell { background: rgba(255,71,87,.08); border: 2px solid rgba(255,71,87,.3); }
+    .rec-banner.hold { background: rgba(255,214,10,.08); border: 2px solid rgba(255,214,10,.3); }
+    .rec-main { font-size: 1.4rem; font-weight: 800; }
+    .rec-detail { font-size: 0.82rem; color: var(--text2); margin-top: 4px; }
+    .rec-score {
+      text-align: center;
+      background: rgba(0,0,0,.2);
+      border-radius: 50%;
+      width: 70px;
+      height: 70px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .rec-score .num { font-size: 1.4rem; font-weight: 800; }
+    .rec-score .lbl { font-size: 0.6rem; color: var(--text3); }
+
+    /* News */
+    .news-list { display: flex; flex-direction: column; gap: 10px; }
+    .news-item {
+      padding: 12px 16px;
+      background: var(--bg3);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      text-decoration: none;
+      transition: all .2s;
+    }
+    .news-item:hover { border-color: rgba(0,212,255,.3); background: var(--card); }
+    .news-item .nt { color: var(--text); font-size: 0.82rem; line-height: 1.4; }
+    .news-item .np { font-size: 0.7rem; color: var(--text3); margin-top: 4px; }
+    .news-item .nd { font-size: 0.7rem; color: var(--text3); white-space: nowrap; }
+
+    /* Fibonacci */
+    .fib-table { width: 100%; }
+    .fib-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 12px;
+      border-radius: 6px;
+      margin-bottom: 4px;
+      font-size: 0.82rem;
+    }
+    .fib-row:hover { background: var(--bg3); }
+    .fib-level { color: var(--text3); width: 60px; }
+    .fib-price { font-weight: 600; }
+    .fib-bar-container { flex: 1; margin: 0 12px; background: var(--bg3); border-radius: 4px; height: 4px; }
+    .fib-bar { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent2), var(--accent)); }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      padding: 0 0 0 4px;
+      margin-bottom: 16px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab-btn {
+      padding: 7px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text3);
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all .2s;
+      white-space: nowrap;
+      font-family: inherit;
+    }
+    .tab-btn.active {
+      background: rgba(0,212,255,.1);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .tab-btn:hover:not(.active) { color: var(--text2); border-color: rgba(255,255,255,.15); }
+
+    /* Loading spinner */
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 40px auto;
+    }
+
+    /* Price targets table */
+    .targets-table { width: 100%; border-collapse: collapse; }
+    .targets-table th {
+      text-align: right;
+      padding: 8px 12px;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      color: var(--text3);
+      border-bottom: 1px solid var(--border);
+    }
+    .targets-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(30,45,74,.5);
+      font-size: 0.85rem;
+    }
+    .targets-table tr:last-child td { border-bottom: none; }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .main-layout { grid-template-columns: 1fr; height: auto; }
+      .chat-panel { height: 50vh; min-height: 350px; border-left: none; border-bottom: 1px solid var(--border); }
+      .analysis-panel { height: 50vh; overflow-y: auto; }
+      .features-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 600px) {
+      .header { padding: 12px 16px; }
+      .analysis-content { padding: 16px; }
+      .stock-header-card { flex-direction: column; }
+    }
+
+    .hidden { display: none !important; }
+    .glowing { box-shadow: 0 0 15px rgba(0,212,255,.25); }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header class="header">
+  <div class="logo">
+    <span>EMPIREX</span>
+    <div class="logo-badge">SCANNER AI</div>
+  </div>
+  <nav class="header-nav">
+    <a href="/">🏠 דשבורד</a>
+    <a href="/agent.html">🤖 AI Agent</a>
+    <a href="/stock-scanner.html" style="color:var(--accent)">📊 סורק מניות</a>
+  </nav>
+</header>
+
+<!-- ── Main Layout ── -->
+<div class="main-layout">
+
+  <!-- ── Left Panel: Chat ── -->
+  <div class="chat-panel">
+    <div class="chat-header">
+      <h2>📊 סורק מניות AI</h2>
+      <p>הכנס טיקר מניה בצ'אט וקבל ניתוח מעמיק מלא — היסטוריה, טכני, יסודי, סטטיסטי ודוח AI מקצועי.</p>
+    </div>
+
+    <div class="examples">
+      <div class="example-chip" onclick="setExample('AAPL')">🍎 AAPL</div>
+      <div class="example-chip" onclick="setExample('NVDA')">🎮 NVDA</div>
+      <div class="example-chip" onclick="setExample('TSLA')">⚡ TSLA</div>
+      <div class="example-chip" onclick="setExample('MSFT')">🪟 MSFT</div>
+      <div class="example-chip" onclick="setExample('AMZN')">📦 AMZN</div>
+      <div class="example-chip" onclick="setExample('GOOGL')">🔍 GOOGL</div>
+      <div class="example-chip" onclick="setExample('META')">📘 META</div>
+      <div class="example-chip" onclick="setExample('AMD')">🔴 AMD</div>
+    </div>
+
+    <div class="chat-messages" id="chatMessages">
+      <div class="msg system">👋 שלום! אני הסורק AI של EMPIREX.<br>הכנס טיקר מניה ואנתח אותה לעומק.</div>
+    </div>
+
+    <div class="chat-input-area">
+      <input type="text" id="chatInput" placeholder="הכנס טיקר מניה... AAPL, TSLA, NVDA" maxlength="12"
+        onkeydown="if(event.key==='Enter')sendScan()" autocomplete="off" autocapitalize="characters" />
+      <button class="send-btn" id="sendBtn" onclick="sendScan()">
+        <span>🔍 נתח</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Right Panel: Analysis ── -->
+  <div class="analysis-panel" id="analysisPanel">
+
+    <!-- Welcome screen (shown initially) -->
+    <div class="welcome-screen" id="welcomeScreen">
+      <div class="big-icon">📡</div>
+      <h1>סורק מניות AI</h1>
+      <p>מערכת ניתוח מניות מתקדמת ברמה מוסדית. הזן כל טיקר וקבל ניתוח מלא ב-60 שניות.</p>
+      <div class="features-grid">
+        <div class="feature-card"><div class="icon">📈</div><div class="label">30+ אינדיקטורים טכניים</div></div>
+        <div class="feature-card"><div class="icon">💰</div><div class="label">ניתוח יסודי מלא</div></div>
+        <div class="feature-card"><div class="icon">📉</div><div class="label">סטטיסטיקה & Risk</div></div>
+        <div class="feature-card"><div class="icon">🗓</div><div class="label">היסטוריה מאז IPO</div></div>
+        <div class="feature-card"><div class="icon">🤖</div><div class="label">דוח AI מקצועי</div></div>
+        <div class="feature-card"><div class="icon">🎯</div><div class="label">המלצת השקעה</div></div>
+      </div>
+    </div>
+
+    <!-- Analysis content (hidden until scan) -->
+    <div class="analysis-content hidden" id="analysisContent">
+
+      <!-- Stock info header -->
+      <div class="stock-header-card hidden" id="stockHeader">
+        <div>
+          <div class="stock-ticker" id="stockTicker">─</div>
+          <div class="stock-name" id="stockName">─</div>
+          <div class="stock-sector" id="stockSector">─</div>
+        </div>
+        <div class="stock-price-section">
+          <div class="stock-price" id="stockPrice">$─</div>
+          <div class="stock-change" id="stockChange">─</div>
+          <div style="font-size:.75rem;color:var(--text3);margin-top:6px" id="stockIpo">IPO: ─</div>
+        </div>
+      </div>
+
+      <!-- Progress tracking -->
+      <div class="progress-section" id="progressSection">
+        <div class="progress-title">⚙️ סטטוס ניתוח <span id="progressPctLabel" style="margin-right:auto;font-weight:400;color:var(--text2)">0%</span></div>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" id="progressBar" style="width:0%"></div>
+        </div>
+        <div class="steps-list" id="stepsList"></div>
+      </div>
+
+      <!-- Quick stats row -->
+      <div class="stats-row hidden" id="statsRow"></div>
+
+      <!-- Chart -->
+      <div class="chart-section hidden" id="chartSection">
+        <div class="section-title">
+          📈 גרף מחיר (12 חודשים אחרונים) <span class="badge">LIVE DATA</span>
+        </div>
+        <div class="tabs" id="chartTabs">
+          <button class="tab-btn active" onclick="renderChart('price')">מחיר</button>
+          <button class="tab-btn" onclick="renderChart('volume')">נפח</button>
+          <button class="tab-btn" onclick="renderChart('rsi')">RSI</button>
+          <button class="tab-btn" onclick="renderChart('macd')">MACD</button>
+        </div>
+        <div class="chart-canvas-wrapper">
+          <canvas id="mainChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Technical indicators -->
+      <div class="hidden" id="technicalSection">
+        <div class="section-title">📊 אינדיקטורים טכניים</div>
+        <div class="indicators-grid" id="indicatorsGrid"></div>
+      </div>
+
+      <!-- Moving Averages -->
+      <div class="chart-section hidden" id="maSection">
+        <div class="section-title">🔄 ממוצעים נעים</div>
+        <table class="ma-table" id="maTable"></table>
+      </div>
+
+      <!-- Fibonacci + Support/Resistance -->
+      <div class="chart-section hidden" id="fibSection">
+        <div class="section-title">📐 רמות פיבונאצ'י (52W) ותמיכה/התנגדות</div>
+        <div id="fibContent"></div>
+      </div>
+
+      <!-- Fundamentals -->
+      <div class="chart-section hidden" id="fundSection">
+        <div class="section-title">💰 ניתוח יסודי</div>
+        <div class="fund-grid" id="fundGrid"></div>
+      </div>
+
+      <!-- Statistical -->
+      <div class="chart-section hidden" id="statSection">
+        <div class="section-title">📉 ניתוח סיכונים וסטטיסטיקה</div>
+        <div class="fund-grid" id="statGrid"></div>
+      </div>
+
+      <!-- News -->
+      <div class="chart-section hidden" id="newsSection">
+        <div class="section-title">📰 חדשות אחרונות</div>
+        <div class="news-list" id="newsList"></div>
+      </div>
+
+      <!-- Analyst targets -->
+      <div class="chart-section hidden" id="analystSection">
+        <div class="section-title">🎯 יעדי אנליסטים</div>
+        <div id="analystContent"></div>
+      </div>
+
+      <!-- Final Report -->
+      <div class="report-section hidden" id="reportSection">
+        <div id="recBanner"></div>
+        <div class="section-title">📄 דוח ניתוח מקצועי</div>
+        <pre class="report-content" id="reportContent"></pre>
+        <div class="export-btns">
+          <button class="export-btn" onclick="copyReport()">📋 העתק דוח</button>
+          <button class="export-btn" onclick="downloadReport()">💾 הורד כ-TXT</button>
+          <button class="export-btn" onclick="printReport()">🖨️ הדפס</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let currentSymbol = '';
+let currentEventSource = null;
+let chartInstance = null;
+let chartData = null;
+let techData = null;
+let scanning = false;
+let currentReport = '';
+
+const STEPS_CONFIG = [
+  { key: 'connect',      label: '🔌 מתחבר למקורות נתונים' },
+  { key: 'info',         label: '🏢 פרופיל חברה' },
+  { key: 'history',      label: '📈 היסטוריה מאז IPO' },
+  { key: 'technical',    label: '📊 אינדיקטורים טכניים' },
+  { key: 'fundamentals', label: '💰 ניתוח יסודי' },
+  { key: 'statistical',  label: '📉 ניתוח סטטיסטי' },
+  { key: 'news',         label: '📰 חדשות ועדכונים' },
+  { key: 'ai_report',   label: '🤖 יצירת דוח AI' },
+  { key: 'finalize',     label: '🎉 סיום וסיכום' },
+];
+
+const stepsState = {};
+
+// ── UI Helpers ─────────────────────────────────────────────────────────────
+function setExample(sym) {
+  document.getElementById('chatInput').value = sym;
+  document.getElementById('chatInput').focus();
+}
+
+function addChatMsg(text, type = 'bot') {
+  const area = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = `msg ${type}`;
+  div.innerHTML = text;
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+}
+
+function showAnalysis() {
+  document.getElementById('welcomeScreen').classList.add('hidden');
+  document.getElementById('analysisContent').classList.remove('hidden');
+}
+
+function resetSections() {
+  ['stockHeader','statsRow','chartSection','technicalSection','maSection',
+   'fibSection','fundSection','statSection','newsSection','analystSection','reportSection']
+    .forEach(id => document.getElementById(id)?.classList.add('hidden'));
+
+  document.getElementById('indicatorsGrid').innerHTML = '';
+  document.getElementById('statsRow').innerHTML = '';
+  document.getElementById('maTable').innerHTML = '';
+  document.getElementById('fibContent').innerHTML = '';
+  document.getElementById('fundGrid').innerHTML = '';
+  document.getElementById('statGrid').innerHTML = '';
+  document.getElementById('newsList').innerHTML = '';
+  document.getElementById('analystContent').innerHTML = '';
+  document.getElementById('reportContent').textContent = '';
+  document.getElementById('recBanner').innerHTML = '';
+
+  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+  chartData = null;
+  techData = null;
+  currentReport = '';
+}
+
+function initSteps() {
+  const list = document.getElementById('stepsList');
+  list.innerHTML = '';
+  STEPS_CONFIG.forEach(s => {
+    stepsState[s.key] = 'waiting';
+    const div = document.createElement('div');
+    div.className = 'step-item';
+    div.id = `step-${s.key}`;
+    div.innerHTML = `
+      <div class="step-icon waiting" id="step-icon-${s.key}">○</div>
+      <div class="step-text" id="step-text-${s.key}">${s.label}</div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+function updateStep(key, status, message) {
+  stepsState[key] = status;
+  const row = document.getElementById(`step-${key}`);
+  const icon = document.getElementById(`step-icon-${key}`);
+  const text = document.getElementById(`step-text-${key}`);
+  if (!row || !icon || !text) return;
+
+  row.className = `step-item ${status === 'running' ? 'active' : status === 'done' ? 'done' : ''}`;
+  icon.className = `step-icon ${status}`;
+
+  if (status === 'running') icon.textContent = '↻';
+  else if (status === 'done') icon.textContent = '✓';
+  else if (status === 'error') icon.textContent = '✕';
+  else icon.textContent = '○';
+
+  if (message) {
+    const display = STEPS_CONFIG.find(s => s.key === key)?.label || key;
+    text.className = `step-text ${status === 'running' ? 'active' : ''}`;
+    text.textContent = status === 'running' ? message : `${display}`;
+  }
+}
+
+function updateProgress(pct) {
+  document.getElementById('progressBar').style.width = `${pct}%`;
+  document.getElementById('progressPctLabel').textContent = `${pct}%`;
+}
+
+function colorVal(v, pos = true) {
+  if (v === null || v === undefined || v === 'N/A') return '';
+  const n = parseFloat(v);
+  if (isNaN(n)) return '';
+  return n > 0 ? (pos ? 'green' : 'red') : n < 0 ? (pos ? 'red' : 'green') : '';
+}
+
+function formatVal(v, suffix = '') {
+  if (v === null || v === undefined || v === 'N/A') return 'N/A';
+  return `${v}${suffix}`;
+}
+
+// ── Main scanner ───────────────────────────────────────────────────────────
+async function sendScan() {
+  if (scanning) return;
+  const input = document.getElementById('chatInput');
+  const raw = input.value.trim().toUpperCase().replace(/[^A-Z0-9.\-]/g, '');
+  if (!raw) { input.focus(); return; }
+
+  // Abort previous SSE
+  if (currentEventSource) { currentEventSource.close(); currentEventSource = null; }
+
+  currentSymbol = raw;
+  scanning = true;
+  input.value = '';
+  document.getElementById('sendBtn').disabled = true;
+  document.getElementById('chatInput').disabled = true;
+
+  addChatMsg(`<div class="ticker-badge">${raw}</div><br>מנתח את מניית <b>${raw}</b>...<br>🔍 מחפש נתונים, מחשב אינדיקטורים ויוצר דוח מקצועי.`, 'user');
+
+  showAnalysis();
+  resetSections();
+
+  // Reset progress
+  updateProgress(0);
+  initSteps();
+
+  // Update stock header placeholders
+  document.getElementById('stockTicker').textContent = raw;
+  document.getElementById('stockName').textContent = 'טוען...';
+  document.getElementById('stockSector').textContent = '─';
+  document.getElementById('stockPrice').textContent = '$─';
+  document.getElementById('stockChange').textContent = '─';
+  document.getElementById('stockIpo').textContent = 'IPO: ─';
+  document.getElementById('stockHeader').classList.remove('hidden');
+
+  try {
+    // Step 1: Start scan session
+    const resp = await fetch('/api/stock-scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbol: raw }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json();
+      addChatMsg(`❌ שגיאה: ${err.error || 'לא ניתן להתחיל ניתוח'}`, 'bot');
+      finishScan();
+      return;
+    }
+    const { session_id } = await resp.json();
+
+    // Step 2: Open SSE stream
+    currentEventSource = new EventSource(`/api/stock-scan/stream?session_id=${session_id}`);
+
+    currentEventSource.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        handleScanEvent(msg);
+      } catch (_) {}
+    };
+
+    currentEventSource.onerror = () => {
+      addChatMsg(`⚠️ חיבור נפסק. בדוק את הנתונים בצד שמאל.`, 'bot');
+      finishScan();
+    };
+
+  } catch (err) {
+    addChatMsg(`❌ שגיאת רשת: ${err.message}`, 'bot');
+    finishScan();
+  }
+}
+
+function finishScan() {
+  scanning = false;
+  document.getElementById('sendBtn').disabled = false;
+  document.getElementById('chatInput').disabled = false;
+  document.getElementById('chatInput').focus();
+  if (currentEventSource) { currentEventSource.close(); currentEventSource = null; }
+}
+
+// ── Event handler ─────────────────────────────────────────────────────────
+function handleScanEvent(msg) {
+  if (!msg || !msg.type) return;
+
+  if (msg.type === 'stream_end') {
+    finishScan();
+    return;
+  }
+
+  if (msg.type === 'error') {
+    updateStep(msg.step || 'connect', 'error', msg.message);
+    addChatMsg(`❌ שגיאה בניתוח ${currentSymbol}: ${msg.message}`, 'bot');
+    finishScan();
+    return;
+  }
+
+  if (msg.type === 'progress') {
+    const { step, status, message, data, percentage } = msg;
+    updateStep(step, status, message);
+    updateProgress(percentage || 0);
+
+    if (status === 'done' && data) {
+      handleStepData(step, data);
+    }
+    return;
+  }
+
+  if (msg.type === 'done') {
+    updateProgress(100);
+    currentReport = msg.report || '';
+
+    // Show report
+    renderReport(msg.report, msg.analysis);
+
+    // Chat reply
+    const sym = msg.symbol || currentSymbol;
+    const hist = (msg.analysis || {}).history_summary || {};
+    const changeSign = (hist.ytd_pct || 0) >= 0 ? '📈' : '📉';
+    addChatMsg(
+      `<div class="ticker-badge">${sym}</div><br>
+       ✅ ניתוח <b>${sym}</b> הושלם!<br>
+       💰 מחיר נוכחי: <b>$${hist.current_price || '─'}</b><br>
+       ${changeSign} ביצועים שנה: <b>${hist.ytd_pct ?? '─'}%</b><br>
+       📅 מאז IPO: <b>${hist.since_ipo_pct ?? '─'}%</b><br>
+       <small style="color:var(--text3)">גלול ימינה לדוח המלא ↗</small>`, 'bot'
+    );
+
+    finishScan();
+  }
+}
+
+function handleStepData(step, data) {
+  if (step === 'info') {
+    document.getElementById('stockName').textContent = data.name || currentSymbol;
+    document.getElementById('stockSector').textContent =
+      [data.sector, data.industry, data.country].filter(Boolean).join(' · ') || '─';
+  }
+
+  if (step === 'history') {
+    document.getElementById('stockPrice').textContent = `$${data.current_price ?? '─'}`;
+    document.getElementById('stockIpo').textContent = `IPO: ${data.ipo_date || '─'} | מחיר IPO: $${data.ipo_price ?? '─'}`;
+
+    const ytd = data.ytd_pct;
+    const ytdEl = document.getElementById('stockChange');
+    ytdEl.textContent = ytd !== null && ytd !== undefined ? `${ytd >= 0 ? '▲' : '▼'} ${Math.abs(ytd)}% (שנה)` : '─';
+    ytdEl.className = `stock-change ${ytd >= 0 ? 'positive' : 'negative'}`;
+
+    // Quick stats
+    renderQuickStats(data);
+
+    // Chart
+    if (data.chart) {
+      chartData = data.chart;
+      renderChart('price');
+      document.getElementById('chartSection').classList.remove('hidden');
+    }
+  }
+
+  if (step === 'technical') {
+    techData = data;
+    renderTechnicalIndicators(data);
+    renderMovingAverages(data);
+    renderFibonacci(data);
+  }
+
+  if (step === 'fundamentals') {
+    renderFundamentals(data);
+    renderAnalystTargets(data);
+  }
+
+  if (step === 'statistical') {
+    renderStatistical(data);
+  }
+
+  if (step === 'news') {
+    renderNews(data.news || []);
+  }
+}
+
+// ── Renderers ─────────────────────────────────────────────────────────────
+
+function renderQuickStats(data) {
+  const statsRow = document.getElementById('statsRow');
+  const stats = [
+    { label: 'מחיר', value: `$${data.current_price ?? '─'}`, cls: 'accent' },
+    { label: '52W גבוה', value: `$${data.high_52w ?? '─'}` },
+    { label: '52W נמוך', value: `$${data.low_52w ?? '─'}` },
+    { label: 'מאז IPO', value: `${data.since_ipo_pct ?? '─'}%`, cls: colorVal(data.since_ipo_pct) },
+    { label: 'שנה אחרונה', value: `${data.ytd_pct ?? '─'}%`, cls: colorVal(data.ytd_pct) },
+    { label: '3 שנים', value: `${data.pct_3y ?? data['3y_pct'] ?? '─'}%`, cls: colorVal(data.pct_3y ?? data['3y_pct']) },
+    { label: '5 שנים', value: `${data.pct_5y ?? data['5y_pct'] ?? '─'}%`, cls: colorVal(data.pct_5y ?? data['5y_pct']) },
+    { label: 'ימי מסחר', value: (data.total_trading_days || '─').toLocaleString() },
+  ];
+
+  statsRow.innerHTML = stats.map(s => `
+    <div class="stat-card">
+      <div class="stat-label">${s.label}</div>
+      <div class="stat-value ${s.cls || ''}">${s.value}</div>
+    </div>`).join('');
+
+  statsRow.classList.remove('hidden');
+}
+
+function renderChart(type) {
+  if (!chartData) return;
+
+  // Update tab states
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  event?.target?.classList.add('active');
+
+  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+
+  const ctx = document.getElementById('mainChart').getContext('2d');
+  const labels = chartData.dates || [];
+
+  let datasets, options, chartType = 'line';
+
+  if (type === 'price') {
+    const prices = chartData.close || [];
+    const start = prices[0] || 0;
+    const end = prices[prices.length - 1] || 0;
+    const isUp = end >= start;
+    const color = isUp ? '#00e676' : '#ff4757';
+    const bgColor = isUp ? 'rgba(0,230,118,0.08)' : 'rgba(255,71,87,0.08)';
+
+    // Add SMA20 and SMA50 if techData available
+    datasets = [{
+      label: 'מחיר',
+      data: prices,
+      borderColor: color,
+      backgroundColor: bgColor,
+      borderWidth: 2,
+      fill: true,
+      tension: 0.1,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+    }];
+
+    if (techData) {
+      // Compute SMA20 for chart
+      const sma20 = computeSMA(prices, 20);
+      const sma50 = computeSMA(prices, 50);
+      datasets.push({
+        label: 'SMA 20',
+        data: sma20,
+        borderColor: '#ffd60a',
+        borderWidth: 1.5,
+        fill: false,
+        tension: 0.1,
+        pointRadius: 0,
+        borderDash: [4, 2],
+      });
+      datasets.push({
+        label: 'SMA 50',
+        data: sma50,
+        borderColor: '#7c3aed',
+        borderWidth: 1.5,
+        fill: false,
+        tension: 0.1,
+        pointRadius: 0,
+        borderDash: [8, 3],
+      });
+    }
+
+    options = {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#94a3b8', font: { size: 11 } } },
+        tooltip: {
+          mode: 'index', intersect: false,
+          callbacks: {
+            label: ctx => ` $${ctx.raw?.toFixed(2) ?? ctx.raw}`,
+          },
+        },
+      },
+      scales: {
+        x: { grid: { color: 'rgba(30,45,74,.5)' }, ticks: { color: '#64748b', maxTicksLimit: 8 } },
+        y: { grid: { color: 'rgba(30,45,74,.5)' }, ticks: { color: '#64748b', callback: v => `$${v.toFixed(0)}` } },
+      },
+      interaction: { mode: 'index', intersect: false },
+    };
+  }
+
+  else if (type === 'volume') {
+    const volumes = (chartData.volume || []).map(v => v / 1e6);
+    datasets = [{
+      label: 'נפח (מיליונים)',
+      data: volumes,
+      backgroundColor: 'rgba(0,212,255,0.4)',
+      borderColor: 'var(--accent)',
+      borderWidth: 1,
+      type: 'bar',
+    }];
+    chartType = 'bar';
+    options = {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 } } } },
+      scales: {
+        x: { grid: { color: 'rgba(30,45,74,.5)' }, ticks: { color: '#64748b', maxTicksLimit: 8 } },
+        y: { grid: { color: 'rgba(30,45,74,.5)' }, ticks: { color: '#64748b', callback: v => `${v.toFixed(0)}M` } },
+      },
+    };
+  }
+
+  else if (type === 'rsi' && techData) {
+    // Compute RSI from price data
+    const rsiValues = computeRSI(chartData.close || [], 14);
+    datasets = [
+      {
+        label: 'RSI (14)',
+        data: rsiValues,
+        borderColor: '#00d4ff',
+        borderWidth: 2,
+        fill: false,
+        tension: 0.1,
+        pointRadius: 0,
+      },
+      {
+        label: 'קנייה יתר (70)',
+        data: labels.map(() => 70),
+        borderColor: 'rgba(255,71,87,.5)',
+        borderWidth: 1,
+        fill: false,
+        borderDash: [4, 2],
+        pointRadius: 0,
+      },
+      {
+        label: 'מכירה יתר (30)',
+        data: labels.map(() => 30),
+        borderColor: 'rgba(0,230,118,.5)',
+        borderWidth: 1,
+        fill: false,
+        borderDash: [4, 2],
+        pointRadius: 0,
+      },
+    ];
+    options = {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 } } } },
+      scales: {
+        x: { grid: { color: 'rgba(30,45,74,.5)' }, ticks: { color: '#64748b', maxTicksLimit: 8 } },
+        y: { grid: { color: 'rgba(30,45,74,.5)' }, ticks: { color: '#64748b' }, min: 0, max: 100 },
+      },
+    };
+  }
+
+  else if (type === 'macd') {
+    const closes = chartData.close || [];
+    const { macd, signal, histogram } = computeMACD(closes);
+    datasets = [
+      { label: 'MACD', data: macd, borderColor: '#00d4ff', borderWidth: 2, fill: false, tension: 0.1, pointRadius: 0 },
+      { label: 'Signal', data: signal, borderColor: '#ffd60a', borderWidth: 1.5, fill: false, tension: 0.1, pointRadius: 0, borderDash: [5, 2] },
+      {
+        label: 'Histogram',
+        data: histogram,
+        backgroundColor: histogram.map(v => v >= 0 ? 'rgba(0,230,118,0.4)' : 'rgba(255,71,87,0.4)'),
+        borderColor: histogram.map(v => v >= 0 ? '#00e676' : '#ff4757'),
+        borderWidth: 1,
+        type: 'bar',
+      },
+    ];
+    options = {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 } } } },
+      scales: {
+        x: { grid: { color: 'rgba(30,45,74,.5)' }, ticks: { color: '#64748b', maxTicksLimit: 8 } },
+        y: { grid: { color: 'rgba(30,45,74,.5)' }, ticks: { color: '#64748b' } },
+      },
+    };
+  }
+
+  if (!datasets) return;
+
+  chartInstance = new Chart(ctx, {
+    type: chartType,
+    data: { labels, datasets },
+    options: {
+      ...options,
+      animation: { duration: 600 },
+    },
+  });
+}
+
+// Client-side indicator computation for charts
+function computeSMA(prices, period) {
+  return prices.map((_, i) => {
+    if (i < period - 1) return null;
+    const slice = prices.slice(i - period + 1, i + 1);
+    return slice.reduce((a, b) => a + b, 0) / period;
+  });
+}
+
+function computeEMA(prices, period) {
+  const result = [];
+  const k = 2 / (period + 1);
+  let ema = prices[0];
+  for (let i = 0; i < prices.length; i++) {
+    ema = prices[i] * k + ema * (1 - k);
+    result.push(ema);
+  }
+  return result;
+}
+
+function computeRSI(prices, period = 14) {
+  const result = new Array(prices.length).fill(null);
+  if (prices.length < period + 1) return result;
+  let avgGain = 0, avgLoss = 0;
+  for (let i = 1; i <= period; i++) {
+    const d = prices[i] - prices[i - 1];
+    if (d > 0) avgGain += d; else avgLoss += Math.abs(d);
+  }
+  avgGain /= period; avgLoss /= period;
+  const rs0 = avgLoss === 0 ? 100 : avgGain / avgLoss;
+  result[period] = 100 - 100 / (1 + rs0);
+  for (let i = period + 1; i < prices.length; i++) {
+    const d = prices[i] - prices[i - 1];
+    const gain = d > 0 ? d : 0;
+    const loss = d < 0 ? Math.abs(d) : 0;
+    avgGain = (avgGain * (period - 1) + gain) / period;
+    avgLoss = (avgLoss * (period - 1) + loss) / period;
+    const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+    result[i] = 100 - 100 / (1 + rs);
+  }
+  return result;
+}
+
+function computeMACD(prices) {
+  const ema12 = computeEMA(prices, 12);
+  const ema26 = computeEMA(prices, 26);
+  const macd = ema12.map((v, i) => v - ema26[i]);
+  const signal = computeEMA(macd, 9);
+  const histogram = macd.map((v, i) => v - signal[i]);
+  return { macd, signal, histogram };
+}
+
+function renderTechnicalIndicators(data) {
+  const grid = document.getElementById('indicatorsGrid');
+
+  const signalClass = (val) => {
+    const v = String(val || '').toLowerCase();
+    if (v.includes('bullish') || v.includes('עולה') || v.includes('חיובי') || v.includes('קנייה') && !v.includes('יתר')) return 'bullish';
+    if (v.includes('bearish') || v.includes('יורד') || v.includes('שלילי') || v.includes('מכירה יתר')) return 'bearish';
+    return 'neutral';
+  };
+
+  const indicators = [
+    { name: 'RSI (14)', value: data.rsi, signal: data.rsi_signal, colorFn: v => v < 30 ? 'green' : v > 70 ? 'red' : '' },
+    { name: 'MACD', value: data.macd_line, signal: data.macd_signal, colorFn: v => v > 0 ? 'green' : 'red' },
+    { name: 'Stochastic %K', value: data.stoch_k, signal: data.stoch_k < 20 ? 'מכירה יתר' : data.stoch_k > 80 ? 'קנייה יתר' : 'ניטרלי', colorFn: v => v < 20 ? 'green' : v > 80 ? 'red' : '' },
+    { name: 'ATR (14)', value: data.atr, signal: 'תנודתיות יומית' },
+    { name: 'ADX', value: data.adx, signal: data.adx > 25 ? 'מגמה חזקה' : 'מגמה חלשה', colorFn: v => v > 25 ? 'green' : '' },
+    { name: 'Williams %R', value: data.williams_r, signal: data.williams_r < -80 ? 'מכירה יתר' : data.williams_r > -20 ? 'קנייה יתר' : 'ניטרלי', colorFn: v => v < -80 ? 'green' : v > -20 ? 'red' : '' },
+    { name: 'CCI (20)', value: data.cci, signal: data.cci > 100 ? 'Overbought' : data.cci < -100 ? 'Oversold' : 'Neutral', colorFn: v => v < -100 ? 'green' : v > 100 ? 'red' : '' },
+    { name: 'VWAP', value: data.vwap ? `$${data.vwap}` : 'N/A', signal: 'ממוצע משוקלל נפח' },
+    { name: 'OBV', value: data.obv_trend, signal: data.obv_trend?.includes('עולה') ? 'Bullish' : 'Bearish' },
+    { name: 'Pivot Point', value: data.pivot ? `$${data.pivot}` : 'N/A', signal: `R1:$${data.r1} S1:$${data.s1}` },
+    { name: '+DI / -DI', value: `${data.plus_di} / ${data.minus_di}`, signal: data.plus_di > data.minus_di ? 'Bullish' : 'Bearish' },
+    { name: 'צלב זהב/מוות', value: data.golden_cross ? '🟢 צלב זהב' : '🔴 צלב מוות', signal: data.golden_cross ? 'SMA50 > SMA200' : 'SMA50 < SMA200' },
+  ];
+
+  grid.innerHTML = indicators.map(ind => {
+    const val = ind.value ?? 'N/A';
+    const numVal = parseFloat(val);
+    const clsVal = ind.colorFn && !isNaN(numVal) ? ind.colorFn(numVal) : '';
+    const sClass = signalClass(ind.signal);
+    return `
+      <div class="indicator-card">
+        <div class="ind-name">${ind.name}</div>
+        <div class="ind-value ${clsVal}">${typeof val === 'number' ? val.toFixed(2) : val}</div>
+        <div class="ind-signal ${sClass}">${ind.signal || ''}</div>
+      </div>`;
+  }).join('');
+
+  document.getElementById('technicalSection').classList.remove('hidden');
+}
+
+function renderMovingAverages(data) {
+  const currentPrice = parseFloat(document.getElementById('stockPrice').textContent.replace('$', '')) || 0;
+
+  const mas = [
+    { name: 'SMA 20', value: data.sma20 },
+    { name: 'SMA 50', value: data.sma50 },
+    { name: 'SMA 100', value: data.sma100 },
+    { name: 'SMA 200', value: data.sma200 },
+    { name: 'EMA 12', value: data.ema12 },
+    { name: 'EMA 20', value: data.ema20 },
+    { name: 'EMA 26', value: data.ema26 },
+    { name: 'EMA 50', value: data.ema50 },
+    { name: 'EMA 200', value: data.ema200 },
+  ];
+
+  const table = document.getElementById('maTable');
+  table.innerHTML = `
+    <thead><tr>
+      <th>ממוצע</th><th>ערך</th><th>מרחק ממחיר</th><th>סיגנל</th>
+    </tr></thead>
+    <tbody>
+    ${mas.filter(m => m.value !== null && m.value !== undefined).map(m => {
+      const diff = currentPrice ? ((currentPrice - m.value) / m.value * 100).toFixed(2) : '─';
+      const above = currentPrice > m.value;
+      return `<tr>
+        <td>${m.name}</td>
+        <td>$${m.value}</td>
+        <td class="${above ? 'positive' : 'negative'}">${diff}%</td>
+        <td><span class="ma-tag ${above ? 'above' : 'below'}">${above ? '▲ מעל' : '▼ מתחת'}</span></td>
+      </tr>`;
+    }).join('')}
+    </tbody>`;
+
+  document.getElementById('maSection').classList.remove('hidden');
+}
+
+function renderFibonacci(data) {
+  const fib = data.fibonacci || {};
+  const fibKeys = Object.keys(fib);
+  if (fibKeys.length === 0) return;
+
+  const maxPrice = parseFloat(fib['0.0%']) || 1;
+  const minPrice = parseFloat(fib['100%']) || 0;
+  const range = maxPrice - minPrice;
+
+  const fibHtml = fibKeys.map(k => {
+    const price = fib[k];
+    const pct = range > 0 ? ((price - minPrice) / range) * 100 : 50;
+    return `
+      <div class="fib-row">
+        <div class="fib-level">${k}</div>
+        <div class="fib-bar-container"><div class="fib-bar" style="width:${pct.toFixed(1)}%"></div></div>
+        <div class="fib-price">$${price}</div>
+      </div>`;
+  }).join('');
+
+  const srHtml = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+      <div>
+        <div style="font-size:.78rem;color:var(--text3);margin-bottom:8px">🔴 התנגדויות</div>
+        ${(data.resistance || []).map(r => `<div style="padding:6px 12px;background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.2);border-radius:6px;margin-bottom:6px;font-size:.85rem;font-weight:600;color:var(--red)">$${r}</div>`).join('') || '<div style="color:var(--text3);font-size:.8rem">לא זוהו</div>'}
+      </div>
+      <div>
+        <div style="font-size:.78rem;color:var(--text3);margin-bottom:8px">🟢 תמיכות</div>
+        ${(data.support || []).map(s => `<div style="padding:6px 12px;background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.2);border-radius:6px;margin-bottom:6px;font-size:.85rem;font-weight:600;color:var(--green)">$${s}</div>`).join('') || '<div style="color:var(--text3);font-size:.8rem">לא זוהו</div>'}
+      </div>
+    </div>`;
+
+  document.getElementById('fibContent').innerHTML = fibHtml + srHtml;
+  document.getElementById('fibSection').classList.remove('hidden');
+}
+
+function renderFundamentals(data) {
+  const items = [
+    { l: 'שווי שוק', v: data.market_cap_fmt },
+    { l: 'P/E Ratio', v: data.pe_ratio },
+    { l: 'Forward P/E', v: data.forward_pe },
+    { l: 'P/B Ratio', v: data.pb_ratio },
+    { l: 'P/S Ratio', v: data.ps_ratio },
+    { l: 'EV/EBITDA', v: data.ev_ebitda },
+    { l: 'EPS (TTM)', v: data.eps_ttm ? `$${data.eps_ttm}` : 'N/A' },
+    { l: 'EPS Forward', v: data.eps_forward ? `$${data.eps_forward}` : 'N/A' },
+    { l: 'Revenue', v: data.revenue_fmt },
+    { l: 'צמיחת Revenue', v: data.revenue_growth != null ? `${data.revenue_growth}%` : 'N/A' },
+    { l: 'שולי רווח גולמי', v: data.gross_margins != null ? `${data.gross_margins}%` : 'N/A' },
+    { l: 'שולי רווח נקי', v: data.profit_margins != null ? `${data.profit_margins}%` : 'N/A' },
+    { l: 'EBITDA', v: data.ebitda_fmt },
+    { l: 'FCF', v: data.free_cashflow_fmt },
+    { l: 'ROE', v: data.roe != null ? `${data.roe}%` : 'N/A' },
+    { l: 'ROA', v: data.roa != null ? `${data.roa}%` : 'N/A' },
+    { l: 'D/E Ratio', v: data.debt_to_equity },
+    { l: 'Current Ratio', v: data.current_ratio },
+    { l: 'מזומנים', v: data.total_cash_fmt },
+    { l: 'חוב כולל', v: data.total_debt_fmt },
+    { l: 'Dividend Yield', v: data.dividend_yield != null ? `${data.dividend_yield}%` : '0%' },
+    { l: 'מחזיקים מוסדיים', v: data.institutional_holders_pct != null ? `${data.institutional_holders_pct}%` : 'N/A' },
+  ];
+
+  document.getElementById('fundGrid').innerHTML = items.map(it => `
+    <div class="fund-item">
+      <div class="fl">${it.l}</div>
+      <div class="fv">${it.v ?? 'N/A'}</div>
+    </div>`).join('');
+
+  document.getElementById('fundSection').classList.remove('hidden');
+}
+
+function renderStatistical(data) {
+  const items = [
+    { l: 'תנודתיות שנתית', v: data.annual_volatility != null ? `${data.annual_volatility}%` : 'N/A' },
+    { l: 'בטא', v: data.beta },
+    { l: 'Sharpe Ratio', v: data.sharpe },
+    { l: 'Max Drawdown', v: data.max_drawdown != null ? `${data.max_drawdown}%` : 'N/A' },
+    { l: 'VaR (95%, יומי)', v: data.var_95 != null ? `${data.var_95}%` : 'N/A' },
+    { l: 'ימים חיוביים', v: data.positive_days != null ? `${data.positive_days}%` : 'N/A' },
+    { l: 'ממוצע נפח 30D', v: data.avg_volume_fmt || 'N/A' },
+    { l: 'ממוצע נפח 10D', v: data.avg_vol_10d_fmt || 'N/A' },
+    { l: 'חודש הכי טוב', v: data.best_month_pct != null ? `${data.best_month_pct}%` : 'N/A' },
+    { l: 'חודש הכי גרוע', v: data.worst_month_pct != null ? `${data.worst_month_pct}%` : 'N/A' },
+    { l: 'תשואה חודשית ממוצעת', v: data.avg_monthly_return != null ? `${data.avg_monthly_return}%` : 'N/A' },
+    { l: 'Calmar Ratio', v: data.calmar_ratio },
+  ];
+
+  document.getElementById('statGrid').innerHTML = items.map(it => `
+    <div class="fund-item">
+      <div class="fl">${it.l}</div>
+      <div class="fv">${it.v ?? 'N/A'}</div>
+    </div>`).join('');
+
+  document.getElementById('statSection').classList.remove('hidden');
+}
+
+function renderNews(news) {
+  const list = document.getElementById('newsList');
+  if (!news || !news.length) {
+    list.innerHTML = '<div style="color:var(--text3);font-size:.82rem;padding:8px">אין חדשות אחרונות</div>';
+  } else {
+    list.innerHTML = news.map(n => `
+      <a class="news-item" href="${n.link || '#'}" target="_blank" rel="noopener">
+        <div>
+          <div class="nt">${n.title || 'ללא כותרת'}</div>
+          <div class="np">${n.publisher || ''}</div>
+        </div>
+        <div class="nd">${n.published || ''}</div>
+      </a>`).join('');
+  }
+  document.getElementById('newsSection').classList.remove('hidden');
+}
+
+function renderAnalystTargets(data) {
+  if (!data.target_mean_price && !data.analyst_count) return;
+
+  const current = parseFloat(document.getElementById('stockPrice').textContent.replace('$','')) || 0;
+  const target = data.target_mean_price;
+  const upside = target && current ? (((target - current) / current) * 100).toFixed(1) : null;
+
+  const rec = data.recommendation || '';
+  const recColors = { buy: '#00e676', hold: '#ffd60a', sell: '#ff4757', strongbuy: '#00e676', strongsell: '#ff4757' };
+  const recColor = recColors[rec.toLowerCase().replace(' ', '')] || '#94a3b8';
+
+  document.getElementById('analystContent').innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px">
+      <div class="fund-item"><div class="fl">המלצה קונצנזוס</div><div class="fv" style="color:${recColor}">${rec || 'N/A'}</div></div>
+      <div class="fund-item"><div class="fl">מספר אנליסטים</div><div class="fv">${data.analyst_count || 'N/A'}</div></div>
+      <div class="fund-item"><div class="fl">יעד ממוצע</div><div class="fv">$${target || 'N/A'}</div></div>
+      <div class="fund-item"><div class="fl">פוטנציאל</div><div class="fv ${upside >= 0 ? 'positive' : 'negative'}">${upside !== null ? upside + '%' : 'N/A'}</div></div>
+      <div class="fund-item"><div class="fl">יעד גבוה</div><div class="fv positive">$${data.target_high || 'N/A'}</div></div>
+      <div class="fund-item"><div class="fl">יעד נמוך</div><div class="fv negative">$${data.target_low || 'N/A'}</div></div>
+    </div>`;
+
+  document.getElementById('analystSection').classList.remove('hidden');
+}
+
+function renderReport(report, analysis) {
+  if (!report) return;
+
+  currentReport = report;
+
+  // Try to extract recommendation
+  const isBuy = report.includes('🟢 קנייה') || report.includes('קנה');
+  const isSell = report.includes('🔴 מכירה') || report.includes('מכור');
+  const isHold = !isBuy && !isSell;
+
+  let recClass = isHold ? 'hold' : isBuy ? 'buy' : 'sell';
+  let recEmoji = isBuy ? '🟢 קנייה' : isSell ? '🔴 מכירה / הימנעות' : '⚪ ניטרלי';
+
+  // Extract score if present
+  const scoreMatch = report.match(/ציון כולל:\s*(\d+)/);
+  const score = scoreMatch ? scoreMatch[1] : '?';
+
+  document.getElementById('recBanner').innerHTML = `
+    <div class="rec-banner ${recClass}">
+      <div>
+        <div class="rec-main">${recEmoji}</div>
+        <div class="rec-detail">${isBuy ? 'מומלץ לשקול השקעה' : isSell ? 'לא מומלץ להשקיע כרגע' : 'המתן לאות ברור'}</div>
+      </div>
+      <div class="rec-score">
+        <div class="num">${score}</div>
+        <div class="lbl">SCORE</div>
+      </div>
+    </div>`;
+
+  document.getElementById('reportContent').textContent = report;
+  document.getElementById('reportSection').classList.remove('hidden');
+
+  // Scroll report into view smoothly
+  setTimeout(() => {
+    document.getElementById('reportSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 300);
+}
+
+// ── Export functions ──────────────────────────────────────────────────────
+function copyReport() {
+  if (!currentReport) return;
+  navigator.clipboard.writeText(currentReport).then(() => {
+    const btn = event.target;
+    const orig = btn.textContent;
+    btn.textContent = '✅ הועתק!';
+    setTimeout(() => btn.textContent = orig, 2000);
+  });
+}
+
+function downloadReport() {
+  if (!currentReport) return;
+  const blob = new Blob([currentReport], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `EMPIREX_Analysis_${currentSymbol}_${new Date().toISOString().slice(0,10)}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function printReport() {
+  const w = window.open('', '_blank');
+  w.document.write(`
+    <html dir="rtl"><head><title>EMPIREX Stock Report - ${currentSymbol}</title>
+    <style>body{font-family:monospace;font-size:12px;line-height:1.6;padding:20px;white-space:pre-wrap}</style>
+    </head><body>${currentReport}</body></html>`);
+  w.document.close();
+  w.print();
+}
+
+// Tab button click fix for chart rendering
+document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+  const types = ['price','volume','rsi','macd'];
+  btn.onclick = function() {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    renderChart(types[i]);
+  };
+});
+</script>
+</body>
+</html>

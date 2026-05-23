@@ -23,6 +23,54 @@ from urllib.error import HTTPError
 from urllib.parse import parse_qs, urlencode, urlparse
 from urllib.request import Request, urlopen
 
+# ─── Stock Scanner session store ─────────────────────────────────────────────
+# Maps session_id -> queue.Queue of SSE events
+_scan_sessions: dict[str, queue.Queue] = {}
+_scan_sessions_lock = threading.Lock()
+
+
+def _scan_session_create(session_id: str) -> "queue.Queue":
+    q: queue.Queue = queue.Queue(maxsize=200)
+    with _scan_sessions_lock:
+        _scan_sessions[session_id] = q
+    return q
+
+
+def _scan_session_get(session_id: str) -> "queue.Queue | None":
+    with _scan_sessions_lock:
+        return _scan_sessions.get(session_id)
+
+
+def _scan_session_remove(session_id: str) -> None:
+    with _scan_sessions_lock:
+        _scan_sessions.pop(session_id, None)
+
+
+def _run_stock_scan(symbol: str, session_id: str) -> None:
+    """Run stock analysis in background thread and push events to queue."""
+    q = _scan_session_get(session_id)
+    if q is None:
+        return
+
+    def push(event: dict) -> None:
+        try:
+            q.put_nowait(json.dumps(event, ensure_ascii=False, default=str))
+        except queue.Full:
+            pass
+
+    try:
+        from stock_analyzer import StockAnalyzer
+        analyzer = StockAnalyzer(symbol, progress_callback=push)
+        analyzer.analyze()
+    except Exception as exc:
+        push({"type": "error", "message": f"שגיאת מערכת: {exc}", "symbol": symbol, "ts": time.time()})
+    finally:
+        # Signal stream end
+        try:
+            q.put_nowait("__END__")
+        except queue.Full:
+            pass
+
 ROOT = Path(__file__).resolve().parent
 DB_PATH = Path(os.getenv("EMPIREX_DB_PATH", str(ROOT / "empirex_leads.db"))).expanduser().resolve()
 ENV_PATH = ROOT / ".env"
@@ -1653,6 +1701,43 @@ class EmpirexHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
         parsed = urlparse(self.path)
 
+        # ── Stock Scanner SSE stream ──────────────────────────────────────
+        if parsed.path == "/api/stock-scan/stream":
+            query = parse_qs(parsed.query)
+            session_id = (query.get("session_id") or [""])[0].strip()
+            if not session_id:
+                self._json_response(400, {"ok": False, "error": "session_id required"})
+                return
+            q = _scan_session_get(session_id)
+            if q is None:
+                self._json_response(404, {"ok": False, "error": "Session not found"})
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "keep-alive")
+            self.send_header("X-Accel-Buffering", "no")
+            self._apply_cors_headers()
+            self.end_headers()
+            try:
+                while True:
+                    try:
+                        msg = q.get(timeout=30)
+                        if msg == "__END__":
+                            self.wfile.write(b"data: {\"type\":\"stream_end\"}\n\n")
+                            self.wfile.flush()
+                            break
+                        self.wfile.write(f"data: {msg}\n\n".encode("utf-8"))
+                        self.wfile.flush()
+                    except queue.Empty:
+                        self.wfile.write(b": ping\n\n")
+                        self.wfile.flush()
+            except Exception:
+                pass
+            finally:
+                _scan_session_remove(session_id)
+            return
+
         if parsed.path == "/api/market/stream":
             # SSE: send real-time market + bot updates to browser
             self.send_response(200)
@@ -2008,6 +2093,26 @@ class EmpirexHandler(SimpleHTTPRequestHandler):
         # ── Support chat (24/7 helpdesk) ────────────────────────────────
         if parsed.path == "/api/support/chat":
             self._handle_support_chat()
+            return
+
+        # ── Stock Scanner (start analysis) ───────────────────────────────
+        if parsed.path == "/api/stock-scan":
+            body = self._read_json_body()
+            symbol = str(body.get("symbol", "")).strip().upper()
+            if not symbol or not re.match(r'^[A-Z0-9.\-]{1,12}$', symbol):
+                self._json_response(400, {"ok": False, "error": "סימול מניה לא תקין"})
+                return
+            session_id = secrets.token_urlsafe(16)
+            _scan_session_create(session_id)
+            # Launch analysis in background thread
+            t = threading.Thread(
+                target=_run_stock_scan,
+                args=(symbol, session_id),
+                daemon=True,
+                name=f"stock-scan-{symbol}-{session_id[:8]}",
+            )
+            t.start()
+            self._json_response(200, {"ok": True, "session_id": session_id, "symbol": symbol})
             return
 
         self._json_response(404, {"ok": False, "error": "Route not found"})
