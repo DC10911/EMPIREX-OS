@@ -1,0 +1,418 @@
+// =============================================================================
+// SCRIPT 2: ORIGINAL — EMP Session Momentum Strategy
+// Version: 6.0
+// Author: EMPIREX-OS / pine-engineer-agent
+// Description: Session VWAP-anchored mean-reversion / momentum hybrid.
+//              Enters on VWAP cross after a pullback from ATR bands during
+//              London session (08:00–12:00 UTC). RSI filter prevents chasing.
+// Instruments: EURUSD, GBPUSD, XAUUSD, NAS100 on 1H or 15m chart.
+// =============================================================================
+//
+// ANTI-REPAINTING MEASURES:
+//   1. Session VWAP is calculated using ONLY bars whose open time falls within
+//      [08:00 UTC, current bar). No future data is accessed.
+//   2. All entry conditions are evaluated exclusively on barstate.isconfirmed
+//      (i.e. the bar has fully closed before any signal is generated).
+//   3. The "pullback touched band" flag uses a var bool that is set when a
+//      confirmed bar's HIGH/LOW reaches the band, and is never retroactively
+//      modified for past bars.
+//   4. strategy.entry() fires on the open of the bar AFTER the signal bar —
+//      standard TradingView backtesting behaviour with calc_on_every_tick=false.
+//   5. No security() calls, no lookahead, no request.security().
+//   6. RSI and ATR use ta.rsi() / ta.atr() which are purely historical.
+//
+// =============================================================================
+
+//@version=6
+strategy(
+     title            = "EMP Session Momentum v6",
+     shorttitle        = "EMP-SMom-v6",
+     overlay           = true,
+     pyramiding        = 0,
+     default_qty_type  = strategy.fixed,
+     default_qty_value = 1,
+     commission_type   = strategy.commission.cash_per_contract,
+     commission_value  = 7,
+     slippage          = 1,
+     calc_on_order_fills = false,
+     calc_on_every_tick  = false
+ )
+
+// =============================================================================
+// INPUTS
+// =============================================================================
+grp_session = "Session Settings"
+i_vwap_start_h  = input.int(8,  "VWAP / Session Start Hour (UTC)",   minval=0, maxval=23, step=1, group=grp_session)
+i_vwap_start_m  = input.int(0,  "VWAP / Session Start Minute (UTC)", minval=0, maxval=59, step=1, group=grp_session)
+i_trade_end_h   = input.int(12, "Trade Entry Close Hour (UTC)",      minval=0, maxval=23, step=1, group=grp_session)
+i_trade_end_m   = input.int(0,  "Trade Entry Close Minute (UTC)",    minval=0, maxval=59, step=1, group=grp_session)
+i_session_end_h = input.int(13, "Position Exit Hour (UTC)",          minval=0, maxval=23, step=1, group=grp_session)
+i_session_end_m = input.int(0,  "Position Exit Minute (UTC)",        minval=0, maxval=59, step=1, group=grp_session)
+
+grp_indicators = "Indicator Settings"
+i_atr_len    = input.int(14,  "ATR Length",           minval=1,   maxval=200, step=1,   group=grp_indicators)
+i_atr_mult   = input.float(1.2, "ATR Band Multiplier", minval=0.1, maxval=5.0, step=0.1, group=grp_indicators)
+i_rsi_len    = input.int(14,  "RSI Length",           minval=2,   maxval=50,  step=1,   group=grp_indicators)
+i_rsi_thresh = input.int(50,  "RSI Threshold",        minval=40,  maxval=60,  step=1,   group=grp_indicators)
+
+grp_risk = "Risk Settings"
+i_sl_mult    = input.float(1.5, "Stop Loss ATR Multiplier",   minval=0.5, maxval=5.0, step=0.1, group=grp_risk)
+i_tp_mult    = input.float(2.5, "Take Profit ATR Multiplier", minval=0.5, maxval=8.0, step=0.1, group=grp_risk)
+i_max_trades = input.int(2,     "Max Trades Per Day",         minval=1,   maxval=4,  step=1,   group=grp_risk)
+
+grp_display = "Display"
+i_show_vwap  = input.bool(true,  "Show Session VWAP",       group=grp_display)
+i_show_bands = input.bool(true,  "Show ATR Bands",          group=grp_display)
+i_show_rsi   = input.bool(false, "Show RSI (separate pane)", group=grp_display)
+i_bg_session = input.bool(true,  "Shade Trade Session",     group=grp_display)
+
+// =============================================================================
+// TIMEZONE HELPERS
+// =============================================================================
+bar_utc_hour   = hour(time, "UTC")
+bar_utc_minute = minute(time, "UTC")
+bar_utc_total  = bar_utc_hour * 60 + bar_utc_minute
+
+vwap_start_total  = i_vwap_start_h * 60 + i_vwap_start_m   // 480  (08:00)
+trade_end_total   = i_trade_end_h  * 60 + i_trade_end_m    // 720  (12:00)
+session_end_total = i_session_end_h * 60 + i_session_end_m  // 780  (13:00)
+
+in_trade_window = (bar_utc_total >= vwap_start_total) and (bar_utc_total < trade_end_total)
+in_session      = (bar_utc_total >= vwap_start_total) and (bar_utc_total < session_end_total)
+
+// =============================================================================
+// NEW DAY / SESSION RESET
+// =============================================================================
+is_new_day = ta.change(dayofmonth(time, "UTC")) != 0
+
+// =============================================================================
+// SESSION VWAP (anchored at 08:00 UTC each day)
+// =============================================================================
+// The standard ta.vwap() is anchored to session open which varies by symbol.
+// We implement a manual cumulative VWAP anchored to 08:00 UTC exactly.
+// Reset occurs on the first bar AT or AFTER 08:00 UTC each calendar day.
+
+// Detect the first bar of the session (08:00 bar)
+// prev bar was before vwap_start_total, this bar is at or after it
+prev_utc_total  = hour(time[1], "UTC") * 60 + minute(time[1], "UTC")
+is_session_open = (bar_utc_total >= vwap_start_total) and (prev_utc_total < vwap_start_total)
+// Also reset on a new calendar day in case the session start rule doesn't fire
+// (e.g. gap open directly into session)
+vwap_reset = is_session_open or (is_new_day and bar_utc_total >= vwap_start_total)
+
+var float cum_tp_vol = 0.0   // cumulative (typical_price * volume)
+var float cum_vol    = 0.0   // cumulative volume
+var float session_vwap = na
+
+if vwap_reset
+    cum_tp_vol := (high + low + close) / 3.0 * volume
+    cum_vol    := volume
+else if in_session
+    cum_tp_vol := cum_tp_vol + (high + low + close) / 3.0 * volume
+    cum_vol    := cum_vol + volume
+
+// VWAP value — only expose inside session, na outside
+session_vwap := (in_session and cum_vol > 0) ? cum_tp_vol / cum_vol : na
+
+// =============================================================================
+// ATR AND BANDS
+// =============================================================================
+atr_val     = ta.atr(i_atr_len)
+upper_band  = na(session_vwap) ? na : session_vwap + atr_val * i_atr_mult
+lower_band  = na(session_vwap) ? na : session_vwap - atr_val * i_atr_mult
+
+// =============================================================================
+// RSI
+// =============================================================================
+rsi_val = ta.rsi(close, i_rsi_len)
+
+// =============================================================================
+// VWAP CROSS DETECTION (confirmed bars only)
+// =============================================================================
+// Cross ABOVE VWAP: prev close was below, current close is above — entire bar confirmed
+vwap_cross_up   = not na(session_vwap) and (close[1] < session_vwap[1]) and (close > session_vwap)
+vwap_cross_down = not na(session_vwap) and (close[1] > session_vwap[1]) and (close < session_vwap)
+
+// =============================================================================
+// PULLBACK-TO-BAND FLAGS
+// =============================================================================
+// We track whether price has touched or exceeded the ATR band within the
+// current session, then pulled back toward VWAP. The flag is cleared once
+// we enter a trade or at session reset.
+//
+// "Touched upper band" = any confirmed bar's HIGH reached upper_band
+// "Pulled back" = subsequent bar's close is between band and VWAP (heading back)
+
+var bool touched_upper  = false
+var bool touched_lower  = false
+var int  day_trades     = 0
+var bool day_long_done  = false
+var bool day_short_done = false
+
+if vwap_reset or is_new_day
+    touched_upper  := false
+    touched_lower  := false
+    day_trades     := 0
+    day_long_done  := false
+    day_short_done := false
+
+// Set touch flags on confirmed bars during session
+if barstate.isconfirmed and in_session
+    if not na(upper_band) and high >= upper_band
+        touched_upper := true
+    if not na(lower_band) and low <= lower_band
+        touched_lower := true
+
+// =============================================================================
+// ENTRY CONDITIONS
+// =============================================================================
+// Long entry:
+//   a. Price previously touched upper band (touched_upper)
+//   b. Pulled back toward VWAP and now crosses VWAP from below (vwap_cross_up)
+//   c. RSI > threshold on signal bar
+//   d. During 08:00–12:00 UTC trade window
+//   e. Not already in a trade, not exceeded daily trade limit
+//   f. First direction rule: if a short was already taken today, no long
+
+long_cond  = barstate.isconfirmed
+          and in_trade_window
+          and touched_upper
+          and vwap_cross_up
+          and (rsi_val > i_rsi_thresh)
+          and (strategy.position_size == 0)
+          and (day_trades < i_max_trades)
+          and (not day_short_done)
+
+// Short entry:
+//   a. Price previously touched lower band (touched_lower)
+//   b. Pulled back toward VWAP and now crosses VWAP from above (vwap_cross_down)
+//   c. RSI < threshold on signal bar
+//   d. During trade window
+//   e. Not already in a trade, not exceeded daily trade limit
+//   f. First direction rule: if a long was already taken today, no short
+
+short_cond = barstate.isconfirmed
+          and in_trade_window
+          and touched_lower
+          and vwap_cross_down
+          and (rsi_val < i_rsi_thresh)
+          and (strategy.position_size == 0)
+          and (day_trades < i_max_trades)
+          and (not day_long_done)
+
+// =============================================================================
+// SL / TP LEVELS
+// =============================================================================
+// Computed at signal bar close price; stored in vars so exit orders persist.
+var float pos_sl = na
+var float pos_tp = na
+
+long_sl_price  = close - atr_val * i_sl_mult
+long_tp_price  = close + atr_val * i_tp_mult
+short_sl_price = close + atr_val * i_sl_mult
+short_tp_price = close - atr_val * i_tp_mult
+
+// =============================================================================
+// ALERT MESSAGES — JSON for MT5 webhook
+// =============================================================================
+long_entry_alert = '{"symbol":"{{ticker}}","action":"buy","price":{{strategy.order.price}},"sl":0,"tp":0,"lots":1.0,"strategy":"EMP-SMom","comment":"EMP_Long_VWAPcross"}'
+short_entry_alert = '{"symbol":"{{ticker}}","action":"sell","price":{{strategy.order.price}},"sl":0,"tp":0,"lots":1.0,"strategy":"EMP-SMom","comment":"EMP_Short_VWAPcross"}'
+long_exit_alert   = '{"symbol":"{{ticker}}","action":"close","price":{{strategy.order.price}},"sl":0,"tp":0,"lots":1.0,"strategy":"EMP-SMom","comment":"EMP_Long_SLTP"}'
+short_exit_alert  = '{"symbol":"{{ticker}}","action":"close","price":{{strategy.order.price}},"sl":0,"tp":0,"lots":1.0,"strategy":"EMP-SMom","comment":"EMP_Short_SLTP"}'
+time_exit_alert   = '{"symbol":"{{ticker}}","action":"close","price":{{strategy.order.price}},"sl":0,"tp":0,"lots":1.0,"strategy":"EMP-SMom","comment":"EMP_TimeExit_13UTC"}'
+
+// =============================================================================
+// STRATEGY ORDERS
+// =============================================================================
+if long_cond
+    strategy.entry("EMP_Long", strategy.long, alert_message=long_entry_alert)
+    pos_sl       := long_sl_price
+    pos_tp       := long_tp_price
+    day_trades   += 1
+    day_long_done := true
+    touched_upper := false   // reset so we don't re-enter on same session touch
+
+if short_cond
+    strategy.entry("EMP_Short", strategy.short, alert_message=short_entry_alert)
+    pos_sl        := short_sl_price
+    pos_tp        := short_tp_price
+    day_trades    += 1
+    day_short_done := true
+    touched_lower  := false
+
+// Exit: SL + TP
+if strategy.position_size > 0
+    strategy.exit(
+         "EMP_Long_Exit",
+         from_entry    = "EMP_Long",
+         stop          = pos_sl,
+         limit         = pos_tp,
+         alert_message = long_exit_alert
+     )
+
+if strategy.position_size < 0
+    strategy.exit(
+         "EMP_Short_Exit",
+         from_entry    = "EMP_Short",
+         stop          = pos_sl,
+         limit         = pos_tp,
+         alert_message = short_exit_alert
+     )
+
+// Time-based exit at 13:00 UTC
+at_session_end = (bar_utc_total >= session_end_total) and (bar_utc_total < session_end_total + 60)
+if at_session_end and strategy.position_size != 0
+    strategy.close_all(alert_message=time_exit_alert)
+
+// =============================================================================
+// VISUAL — Session Background
+// =============================================================================
+bgcolor(
+     i_bg_session and in_trade_window ? color.new(color.teal, 92) : na,
+     title = "Trade Window (08–12 UTC)"
+ )
+bgcolor(
+     i_bg_session and in_session and not in_trade_window ? color.new(color.gray, 94) : na,
+     title = "Hold Window (12–13 UTC)"
+ )
+
+// =============================================================================
+// VISUAL — VWAP and Bands
+// =============================================================================
+vwap_plot = plot(
+     i_show_vwap ? session_vwap : na,
+     title     = "Session VWAP",
+     color     = color.new(color.white, 0),
+     linewidth  = 2,
+     style     = plot.style_line
+ )
+
+upper_plot = plot(
+     i_show_bands ? upper_band : na,
+     title     = "VWAP Upper Band (+ATR×mult)",
+     color     = color.new(color.aqua, 20),
+     linewidth  = 1,
+     style     = plot.style_line
+ )
+
+lower_plot = plot(
+     i_show_bands ? lower_band : na,
+     title     = "VWAP Lower Band (-ATR×mult)",
+     color     = color.new(color.fuchsia, 20),
+     linewidth  = 1,
+     style     = plot.style_line
+ )
+
+// Fill between bands
+fill(upper_plot, vwap_plot, color=color.new(color.aqua,    94), title="Upper Band Fill")
+fill(lower_plot, vwap_plot, color=color.new(color.fuchsia, 94), title="Lower Band Fill")
+
+// =============================================================================
+// VISUAL — Entry & Exit Signals
+// =============================================================================
+plotshape(
+     long_cond,
+     title     = "Long Signal",
+     location  = location.belowbar,
+     style     = shape.labelup,
+     size      = size.small,
+     color     = color.new(color.lime, 0),
+     textcolor = color.black,
+     text      = "L"
+ )
+
+plotshape(
+     short_cond,
+     title     = "Short Signal",
+     location  = location.abovebar,
+     style     = shape.labeldown,
+     size      = size.small,
+     color     = color.new(color.red, 0),
+     textcolor = color.white,
+     text      = "S"
+ )
+
+// =============================================================================
+// VISUAL — SL / TP Levels as plotted horizontal lines
+// =============================================================================
+// Render SL/TP only while in a position
+plot(
+     strategy.position_size != 0 ? pos_sl : na,
+     title     = "Active SL",
+     color     = color.new(color.red, 20),
+     style     = plot.style_linebr,
+     linewidth  = 1
+ )
+
+plot(
+     strategy.position_size != 0 ? pos_tp : na,
+     title     = "Active TP",
+     color     = color.new(color.lime, 20),
+     style     = plot.style_linebr,
+     linewidth  = 1
+ )
+
+// =============================================================================
+// VISUAL — RSI in Separate Pane (optional)
+// =============================================================================
+// Note: Pine Script does not allow conditional pane assignment, so RSI is
+// plotted in the same pane as overlay=true. To view RSI separately, add the
+// built-in RSI indicator alongside this strategy. The plot below is hidden
+// by default (na when toggle is off) and shows RSI value as a label.
+// For a clean implementation, the RSI is displayed in the info table instead.
+
+// =============================================================================
+// VISUAL — Touch indicators
+// =============================================================================
+// Small dot when price first touches upper/lower band
+band_touch_up   = barstate.isconfirmed and in_session and not na(upper_band) and high >= upper_band and not touched_upper[1]
+band_touch_down = barstate.isconfirmed and in_session and not na(lower_band) and low  <= lower_band and not touched_lower[1]
+
+plotshape(
+     band_touch_up,
+     title    = "Upper Band Touch",
+     location = location.abovebar,
+     style    = shape.circle,
+     size     = size.tiny,
+     color    = color.new(color.aqua, 20)
+ )
+
+plotshape(
+     band_touch_down,
+     title    = "Lower Band Touch",
+     location = location.belowbar,
+     style    = shape.circle,
+     size     = size.tiny,
+     color    = color.new(color.fuchsia, 20)
+ )
+
+// =============================================================================
+// INFO TABLE
+// =============================================================================
+var table info_tbl = table.new(position.top_right, 2, 7,
+     border_color = color.new(color.gray, 60), border_width = 1,
+     frame_color  = color.new(color.gray, 40), frame_width  = 1)
+
+if barstate.islast
+    table.cell(info_tbl, 0, 0, "EMP Session Momentum", text_color=color.white,  bgcolor=color.new(color.teal, 20))
+    table.cell(info_tbl, 1, 0, "Status",               text_color=color.white,  bgcolor=color.new(color.teal, 20))
+    table.cell(info_tbl, 0, 1, "VWAP",                 text_color=color.silver, bgcolor=color.new(color.gray, 82))
+    table.cell(info_tbl, 1, 1, na(session_vwap) ? "N/A" : str.tostring(math.round(session_vwap, 5)),
+         text_color=color.white, bgcolor=color.new(color.gray, 82))
+    table.cell(info_tbl, 0, 2, "ATR",                  text_color=color.silver, bgcolor=color.new(color.gray, 85))
+    table.cell(info_tbl, 1, 2, str.tostring(math.round(atr_val, 5)), text_color=color.white, bgcolor=color.new(color.gray, 85))
+    table.cell(info_tbl, 0, 3, "RSI",                  text_color=color.silver, bgcolor=color.new(color.gray, 82))
+    table.cell(info_tbl, 1, 3, str.tostring(math.round(rsi_val, 1)),
+         text_color = rsi_val > i_rsi_thresh ? color.lime : color.red,
+         bgcolor    = color.new(color.gray, 82))
+    table.cell(info_tbl, 0, 4, "Touch Upper",          text_color=color.silver, bgcolor=color.new(color.gray, 85))
+    table.cell(info_tbl, 1, 4, str.tostring(touched_upper),
+         text_color = touched_upper ? color.lime : color.gray, bgcolor=color.new(color.gray, 85))
+    table.cell(info_tbl, 0, 5, "Trades Today",         text_color=color.silver, bgcolor=color.new(color.gray, 82))
+    table.cell(info_tbl, 1, 5, str.tostring(day_trades) + "/" + str.tostring(i_max_trades),
+         text_color=color.white, bgcolor=color.new(color.gray, 82))
+    table.cell(info_tbl, 0, 6, "Position",             text_color=color.silver, bgcolor=color.new(color.gray, 85))
+    table.cell(info_tbl, 1, 6,
+         strategy.position_size > 0 ? "LONG" : strategy.position_size < 0 ? "SHORT" : "FLAT",
+         text_color = strategy.position_size > 0 ? color.lime : strategy.position_size < 0 ? color.red : color.silver,
+         bgcolor    = color.new(color.gray, 85))

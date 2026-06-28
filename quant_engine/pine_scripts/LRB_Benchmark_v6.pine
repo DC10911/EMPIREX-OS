@@ -1,0 +1,326 @@
+// =============================================================================
+// SCRIPT 1: BENCHMARK — London Session Range Breakout (LRB)
+// Version: 6.0
+// Author: EMPIREX-OS / pine-engineer-agent
+// Description: Captures pre-London high/low range (06:00–08:00 UTC) and trades
+//              breakouts after 08:00 UTC. Uses only confirmed bars to prevent
+//              repainting. No lookahead, no security() calls.
+// Instruments: EURUSD, GBPUSD on 1H or 15m chart
+// =============================================================================
+//
+// ANTI-REPAINTING MEASURES:
+//   1. All range calculations reference bar[1] or fully-closed bars only.
+//   2. Session boundaries are evaluated with barstate.isconfirmed = true implied
+//      by only acting on bar CLOSE values (not intrabar highs/lows of current bar).
+//   3. The pre-London range is committed once the 08:00 bar closes — the range
+//      values are stored in vars and never recalculated intraday.
+//   4. strategy.entry() fires on bar_open of the NEXT bar after signal, ensuring
+//      the signal bar is fully closed before acting.
+//   5. No security() calls anywhere in this script.
+//
+// =============================================================================
+
+//@version=6
+strategy(
+     title            = "LRB Benchmark — London Range Breakout v6",
+     shorttitle        = "LRB-v6",
+     overlay           = true,
+     pyramiding        = 0,
+     default_qty_type  = strategy.fixed,
+     default_qty_value = 1,
+     commission_type   = strategy.commission.cash_per_contract,
+     commission_value  = 7,
+     slippage          = 1,
+     calc_on_order_fills = false,
+     calc_on_every_tick  = false
+ )
+
+// =============================================================================
+// INPUTS
+// =============================================================================
+grp_session = "Session Settings"
+i_pre_start_h = input.int(6,  "Pre-London Start Hour (UTC)",   minval=0,  maxval=23, step=1, group=grp_session)
+i_pre_start_m = input.int(0,  "Pre-London Start Minute (UTC)", minval=0,  maxval=59, step=1, group=grp_session)
+i_pre_end_h   = input.int(8,  "Pre-London End Hour (UTC)",     minval=0,  maxval=23, step=1, group=grp_session)
+i_pre_end_m   = input.int(0,  "Pre-London End Minute (UTC)",   minval=0,  maxval=59, step=1, group=grp_session)
+i_trade_end_h = input.int(13, "Trade Exit Hour (UTC)",         minval=0,  maxval=23, step=1, group=grp_session)
+i_trade_end_m = input.int(0,  "Trade Exit Minute (UTC)",       minval=0,  maxval=59, step=1, group=grp_session)
+
+grp_risk = "Risk Settings"
+i_tp_mult    = input.float(1.5, "TP Multiplier (× range)",  minval=0.5, maxval=5.0, step=0.1, group=grp_risk)
+i_max_trades = input.int(2,     "Max Trades Per Day",        minval=1,   maxval=4,  step=1,   group=grp_risk)
+
+grp_display = "Display"
+i_show_range  = input.bool(true,  "Show Pre-London Range Box",  group=grp_display)
+i_show_tpsl   = input.bool(true,  "Show TP / SL Lines",         group=grp_display)
+i_bg_session  = input.bool(true,  "Shade London Session",        group=grp_display)
+
+// =============================================================================
+// TIMEZONE & SESSION HELPERS
+// =============================================================================
+// Convert UTC hour/min to a session string for time() built-in
+// time() returns na if the bar is NOT in the session → use for filtering only.
+// We compute actual UTC hour/minute from the timestamp for boundary logic.
+
+bar_utc_hour   = hour(time, "UTC")
+bar_utc_minute = minute(time, "UTC")
+bar_utc_total  = bar_utc_hour * 60 + bar_utc_minute
+
+pre_start_total = i_pre_start_h * 60 + i_pre_start_m   // 360  (06:00)
+pre_end_total   = i_pre_end_h   * 60 + i_pre_end_m     // 480  (08:00)
+trade_end_total = i_trade_end_h * 60 + i_trade_end_m   // 780  (13:00)
+
+// A bar is "inside pre-London window" when its CLOSE time falls within [06:00, 08:00)
+// We use bar_utc_total which is the bar OPEN timestamp → for 1H bars the close is +60m,
+// for 15m bars the close is +15m. Using close[] (bar[1]) is cleaner:
+//   bar_utc_total >= pre_start_total AND bar_utc_total < pre_end_total
+// This is correct because time() on a bar returns the bar's OPEN time, and we only act
+// after barstate is confirmed (the bar is fully formed).
+
+in_pre_window  = (bar_utc_total >= pre_start_total) and (bar_utc_total < pre_end_total)
+in_trade_window = (bar_utc_total >= pre_end_total)   and (bar_utc_total < trade_end_total)
+in_london       = (bar_utc_total >= pre_end_total)   and (bar_utc_total < trade_end_total)
+
+// =============================================================================
+// DETECT NEW DAY (UTC midnight)
+// =============================================================================
+is_new_day = ta.change(dayofmonth(time, "UTC")) != 0
+
+// =============================================================================
+// PRE-LONDON RANGE TRACKING (no lookahead)
+// =============================================================================
+// Vars persist across bars; we only update them inside the pre-window.
+// The range is "locked" once the first bar after 08:00 UTC opens.
+
+var float pre_high     = na
+var float pre_low      = na
+var float locked_high  = na   // committed range high after 08:00
+var float locked_low   = na   // committed range low  after 08:00
+var bool  range_locked = false
+var int   day_trades   = 0
+var bool  day_long_done  = false   // first breakout direction
+var bool  day_short_done = false
+
+// Reset state on new UTC day
+if is_new_day
+    pre_high       := na
+    pre_low        := na
+    locked_high    := na
+    locked_low     := na
+    range_locked   := false
+    day_trades     := 0
+    day_long_done  := false
+    day_short_done := false
+
+// Accumulate high/low during pre-London window using CONFIRMED bar closes
+// (high and low of the closed bar, not the current open bar)
+if in_pre_window and barstate.isconfirmed
+    pre_high := na(pre_high) ? high : math.max(pre_high, high)
+    pre_low  := na(pre_low)  ? low  : math.min(pre_low,  low)
+
+// Lock the range on the first bar that is NO LONGER in the pre-window
+// and the range has been set.  We check bar_utc_total >= pre_end_total
+// (i.e. we are at or past 08:00 UTC) and range is not yet locked.
+// This fires on the bar whose open is at or after 08:00 UTC.
+if (bar_utc_total >= pre_end_total) and (not range_locked) and (not na(pre_high))
+    locked_high  := pre_high
+    locked_low   := pre_low
+    range_locked := true
+
+range_size = na(locked_high) or na(locked_low) ? na : locked_high - locked_low
+
+// =============================================================================
+// ENTRY SIGNALS — only on confirmed bars, during trade window, after range locked
+// =============================================================================
+long_signal  = false
+short_signal = false
+
+if range_locked and in_trade_window and barstate.isconfirmed
+    // First breakout direction rule: once one side fires, block the other
+    can_long  = (not day_short_done) and (day_trades < i_max_trades)
+    can_short = (not day_long_done)  and (day_trades < i_max_trades)
+
+    // Long: close breaks above locked high (bar fully closed above the level)
+    if can_long and (close > locked_high) and strategy.position_size == 0
+        long_signal := true
+
+    // Short: close breaks below locked low
+    if can_short and (close < locked_low) and strategy.position_size == 0
+        short_signal := true
+
+// =============================================================================
+// COMPUTE TP / SL LEVELS
+// =============================================================================
+var float entry_sl = na
+var float entry_tp = na
+
+long_sl  = na(locked_low)  ? na : locked_low
+long_tp  = na(locked_high) or na(range_size) ? na : locked_high + range_size * i_tp_mult
+short_sl = na(locked_high) ? na : locked_high
+short_tp = na(locked_low)  or na(range_size) ? na : locked_low  - range_size * i_tp_mult
+
+// =============================================================================
+// ALERT MESSAGE — JSON for MT5 webhook
+// =============================================================================
+long_alert_msg  = '{"symbol":"{{ticker}}","action":"buy","price":{{strategy.order.price}},"sl":0,"tp":0,"lots":1.0,"strategy":"EMP-LRB","comment":"LRB_Long_Breakout"}'
+short_alert_msg = '{"symbol":"{{ticker}}","action":"sell","price":{{strategy.order.price}},"sl":0,"tp":0,"lots":1.0,"strategy":"EMP-LRB","comment":"LRB_Short_Breakout"}'
+exit_alert_msg  = '{"symbol":"{{ticker}}","action":"close","price":{{strategy.order.price}},"sl":0,"tp":0,"lots":1.0,"strategy":"EMP-LRB","comment":"LRB_TimeExit"}'
+
+// =============================================================================
+// STRATEGY ORDERS
+// =============================================================================
+if long_signal
+    strategy.entry("LRB_Long", strategy.long, alert_message=long_alert_msg)
+    entry_sl   := long_sl
+    entry_tp   := long_tp
+    day_trades += 1
+    day_long_done := true
+
+if short_signal
+    strategy.entry("LRB_Short", strategy.short, alert_message=short_alert_msg)
+    entry_sl   := short_sl
+    entry_tp   := short_tp
+    day_trades += 1
+    day_short_done := true
+
+// Exit: SL + TP via strategy.exit()
+if strategy.position_size > 0
+    strategy.exit(
+         "LRB_Long_Exit",
+         from_entry = "LRB_Long",
+         stop       = entry_sl,
+         limit      = entry_tp,
+         alert_message = '{"symbol":"{{ticker}}","action":"close","price":{{strategy.order.price}},"sl":0,"tp":0,"lots":1.0,"strategy":"EMP-LRB","comment":"LRB_Long_SLTP"}'
+     )
+
+if strategy.position_size < 0
+    strategy.exit(
+         "LRB_Short_Exit",
+         from_entry = "LRB_Short",
+         stop       = entry_sl,
+         limit      = entry_tp,
+         alert_message = '{"symbol":"{{ticker}}","action":"close","price":{{strategy.order.price}},"sl":0,"tp":0,"lots":1.0,"strategy":"EMP-LRB","comment":"LRB_Short_SLTP"}'
+     )
+
+// Time-based exit at 13:00 UTC — close any open position
+at_time_exit = (bar_utc_total >= trade_end_total) and (bar_utc_total < trade_end_total + 60)
+if at_time_exit and strategy.position_size != 0
+    strategy.close_all(alert_message=exit_alert_msg)
+
+// =============================================================================
+// VISUAL — Pre-London Range Box
+// =============================================================================
+// Track range box drawing
+var box  range_box   = na
+var line hl_line     = na   // locked high line
+var line ll_line     = na   // locked low  line
+var line tp_line     = na
+var line sl_line_vis = na
+
+// Draw/update range box during pre-London window
+if i_show_range
+    if in_pre_window and range_locked == false
+        // First bar of pre-window: create box
+        if na(range_box) or is_new_day
+            range_box := box.new(
+                 left    = bar_index,
+                 top     = high,
+                 right   = bar_index + 1,
+                 bottom  = low,
+                 border_color = color.new(color.orange, 20),
+                 bgcolor      = color.new(color.orange, 88)
+             )
+        else
+            box.set_top(range_box, math.max(box.get_top(range_box), high))
+            box.set_bottom(range_box, math.min(box.get_bottom(range_box), low))
+            box.set_right(range_box, bar_index + 1)
+
+// Draw locked range horizontal lines
+if range_locked and barstate.isconfirmed
+    if na(hl_line) or is_new_day
+        hl_line := line.new(bar_index, locked_high, bar_index + 50, locked_high,
+             color=color.new(color.green, 0), style=line.style_dashed, width=1)
+    else
+        line.set_x2(hl_line, bar_index + 50)
+
+    if na(ll_line) or is_new_day
+        ll_line := line.new(bar_index, locked_low, bar_index + 50, locked_low,
+             color=color.new(color.red, 0), style=line.style_dashed, width=1)
+    else
+        line.set_x2(ll_line, bar_index + 50)
+
+// =============================================================================
+// VISUAL — Session Background Shading
+// =============================================================================
+bgcolor(
+     i_bg_session and in_london ? color.new(color.blue, 92) : na,
+     title = "London Session"
+ )
+
+bgcolor(
+     i_bg_session and in_pre_window ? color.new(color.orange, 90) : na,
+     title = "Pre-London Window"
+ )
+
+// =============================================================================
+// VISUAL — Entry Signals
+// =============================================================================
+plotshape(
+     long_signal,
+     title     = "Long Breakout",
+     location  = location.belowbar,
+     style     = shape.triangleup,
+     size      = size.small,
+     color     = color.new(color.lime, 0),
+     text      = "LRB↑"
+ )
+
+plotshape(
+     short_signal,
+     title     = "Short Breakout",
+     location  = location.abovebar,
+     style     = shape.triangledown,
+     size      = size.small,
+     color     = color.new(color.red, 0),
+     text      = "LRB↓"
+ )
+
+// =============================================================================
+// VISUAL — Locked range plots (overlay lines on chart)
+// =============================================================================
+plot(
+     range_locked ? locked_high : na,
+     title  = "Pre-London High",
+     color  = color.new(color.green, 30),
+     style  = plot.style_linebr,
+     linewidth = 1
+ )
+
+plot(
+     range_locked ? locked_low : na,
+     title  = "Pre-London Low",
+     color  = color.new(color.red, 30),
+     style  = plot.style_linebr,
+     linewidth = 1
+ )
+
+// =============================================================================
+// INFO TABLE
+// =============================================================================
+var table info_tbl = table.new(position.top_right, 2, 5,
+     border_color = color.new(color.gray, 60), border_width = 1,
+     frame_color  = color.new(color.gray, 40), frame_width  = 1)
+
+if barstate.islast
+    table.cell(info_tbl, 0, 0, "LRB Strategy",  text_color=color.white,  bgcolor=color.new(color.navy, 20))
+    table.cell(info_tbl, 1, 0, "Status",         text_color=color.white,  bgcolor=color.new(color.navy, 20))
+    table.cell(info_tbl, 0, 1, "Range Locked",   text_color=color.silver, bgcolor=color.new(color.gray, 80))
+    table.cell(info_tbl, 1, 1, str.tostring(range_locked), text_color=range_locked ? color.lime : color.red, bgcolor=color.new(color.gray, 80))
+    table.cell(info_tbl, 0, 2, "Range Size",     text_color=color.silver, bgcolor=color.new(color.gray, 85))
+    table.cell(info_tbl, 1, 2, na(range_size) ? "N/A" : str.tostring(math.round(range_size, 5)), text_color=color.white, bgcolor=color.new(color.gray, 85))
+    table.cell(info_tbl, 0, 3, "Trades Today",   text_color=color.silver, bgcolor=color.new(color.gray, 80))
+    table.cell(info_tbl, 1, 3, str.tostring(day_trades) + "/" + str.tostring(i_max_trades), text_color=color.white, bgcolor=color.new(color.gray, 80))
+    table.cell(info_tbl, 0, 4, "Position",       text_color=color.silver, bgcolor=color.new(color.gray, 85))
+    table.cell(info_tbl, 1, 4, strategy.position_size > 0 ? "LONG" : strategy.position_size < 0 ? "SHORT" : "FLAT",
+         text_color = strategy.position_size > 0 ? color.lime : strategy.position_size < 0 ? color.red : color.silver,
+         bgcolor    = color.new(color.gray, 85))
