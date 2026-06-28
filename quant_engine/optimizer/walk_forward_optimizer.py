@@ -24,84 +24,416 @@ import numpy as np
 import pandas as pd
 
 # ---------------------------------------------------------------------------
-# Compatibility shim so this module can run standalone OR with the real engine
+# Real engine import + strategy adapters
 # ---------------------------------------------------------------------------
 _ENGINE_PATH = Path(__file__).resolve().parents[1] / "python_backtest"
 if str(_ENGINE_PATH) not in sys.path:
     sys.path.insert(0, str(_ENGINE_PATH))
 
 try:
-    from backtest_engine import BacktestEngine  # type: ignore[import]
-except ImportError:  # pragma: no cover – stub used when engine not present
-    class BacktestEngine:  # type: ignore[no-redef]
+    from backtest_engine import (  # type: ignore[import]
+        BacktestEngine as _RealBacktestEngine,
+        Trade as _EngineTrade,
+    )
+    _REAL_ENGINE_AVAILABLE = True
+except ImportError:
+    _RealBacktestEngine = None  # type: ignore[assignment,misc]
+    _EngineTrade = None         # type: ignore[assignment]
+    _REAL_ENGINE_AVAILABLE = False
+
+
+# ---------------------------------------------------------------------------
+# Strategy protocol expected by the real BacktestEngine
+# ---------------------------------------------------------------------------
+
+class _BaseStrategyAdapter:
+    """
+    Minimal interface that BacktestEngine.run(df, strategy) calls.
+    Sub-classes implement on_bar() for each strategy type.
+    """
+
+    def reset(self) -> None:
+        """Called by engine at start of each run()."""
+        pass  # override in sub-classes if stateful
+
+    def on_bar(
+        self,
+        bar_time,
+        bar,
+        prev_bars,
+        daily_state,
+        symbol: str,
+        lot_size: float,
+    ):
         """
-        Minimal stub so the optimizer can be imported and unit-tested
-        without the full backtest engine installed.
-
-        Replace this class with the real implementation once
-        python_backtest/backtest_engine.py exists.
-
-        Expected real interface
-        -----------------------
-        engine = BacktestEngine(strategy="LRB" | "EMP", params=dict)
-        results = engine.run(ohlcv_df: pd.DataFrame)
-        # results is a dict with at minimum:
-        #   trades      -> list[dict] each with keys: entry_dt, exit_dt, pnl
-        #   equity_curve -> list[float]
-        #   sharpe       -> float
-        #   profit_factor -> float
-        #   win_rate      -> float  (0-1)
-        #   max_drawdown  -> float  (0-1, positive number)
-        #   total_return  -> float
+        Return None (no trade) or (direction, sl, tp, session).
+        direction: "long" or "short"
+        sl: stop-loss price
+        tp: take-profit price
+        session: label string e.g. "London"
         """
+        raise NotImplementedError
 
-        def __init__(self, strategy: str, params: dict[str, Any]) -> None:
-            self.strategy = strategy
-            self.params = params
 
-        def run(self, ohlcv_df: pd.DataFrame) -> dict[str, Any]:
-            """
-            Stub: generates synthetic results that scale weakly with param
-            values so the optimizer has something to optimise against.
-            In production, replace with the real backtest calculation.
-            """
-            rng = np.random.default_rng(
-                seed=abs(hash(json.dumps(self.params, sort_keys=True, default=str))) % (2**31)
-            )
-            n_bars = len(ohlcv_df)
-            n_trades = max(0, int(n_bars / 20 + rng.normal(0, 3)))
-            if n_trades == 0:
-                return _empty_results()
+class _LRBStrategyAdapter(_BaseStrategyAdapter):
+    """
+    London Range Breakout strategy adapter.
 
-            pnls = rng.normal(loc=0.002, scale=0.012, size=n_trades)
-            equity = np.cumprod(1 + pnls)
-            peak = np.maximum.accumulate(equity)
-            drawdowns = (peak - equity) / peak
-            wins = (pnls > 0).sum()
+    Params
+    ------
+    pre_session_start : float  UTC hour (e.g. 5.0)
+    pre_session_end   : float  UTC hour (e.g. 8.0)
+    tp_multiplier     : float  TP = range * tp_multiplier
+    sl_from_opposite  : bool   SL = opposite side of range
+    time_exit_hour    : int    UTC hour to time-exit (e.g. 13)
+    symbol            : str    instrument (default "EURUSD")
+    """
 
-            sharpe = _compute_sharpe(pnls)
-            pf = (pnls[pnls > 0].sum() / abs(pnls[pnls < 0].sum())
-                  if (pnls < 0).any() else float("inf"))
+    def __init__(self, params: dict[str, Any], symbol: str = "EURUSD") -> None:
+        self.params = params
+        self.symbol = symbol
+        self._range_high: float | None = None
+        self._range_low: float | None = None
+        self._traded_today: bool = False
 
-            trades = []
-            base_dt = ohlcv_df.index[0] if hasattr(ohlcv_df.index[0], "hour") else datetime(2020, 1, 1)
-            for i, p in enumerate(pnls):
-                entry = base_dt + timedelta(hours=i * 8)
-                trades.append({
-                    "entry_dt": entry,
-                    "exit_dt": entry + timedelta(hours=4),
-                    "pnl": float(p),
-                })
+    def reset(self) -> None:
+        self._range_high = None
+        self._range_low = None
+        self._traded_today = False
 
-            return {
-                "trades": trades,
-                "equity_curve": equity.tolist(),
-                "sharpe": float(sharpe),
-                "profit_factor": float(pf),
-                "win_rate": float(wins / n_trades),
-                "max_drawdown": float(drawdowns.max()),
-                "total_return": float(equity[-1] - 1),
-            }
+    def on_bar(self, bar_time, bar, prev_bars, daily_state, symbol, lot_size):
+        p = self.params
+        pre_start = float(p["pre_session_start"])
+        pre_end   = float(p["pre_session_end"])
+        tp_mult   = float(p["tp_multiplier"])
+        sl_opp    = bool(p["sl_from_opposite"])
+        exit_hour = int(p["time_exit_hour"])
+
+        # Localise time
+        bh = bar_time.hour + bar_time.minute / 60.0
+
+        # Reset daily range tracking at start of pre-session window
+        if bh >= pre_start and (bh - 1.0 / 60) < pre_start:
+            self._range_high = None
+            self._range_low  = None
+            self._traded_today = False
+
+        # Accumulate range during pre-session
+        if pre_start <= bh < pre_end:
+            bar_high = float(bar["high"])
+            bar_low  = float(bar["low"])
+            self._range_high = bar_high if self._range_high is None else max(self._range_high, bar_high)
+            self._range_low  = bar_low  if self._range_low  is None else min(self._range_low,  bar_low)
+            return None
+
+        # Time exit: engine handles SL/TP; we prevent new entries after exit_hour
+        if bh >= exit_hour:
+            self._traded_today = True  # block further entries
+            return None
+
+        # Entry window: after pre_session_end, before exit_hour
+        if self._traded_today or self._range_high is None or self._range_low is None:
+            return None
+
+        if not (pre_end <= bh < exit_hour):
+            return None
+
+        bar_close = float(bar["close"])
+        bar_range = self._range_high - self._range_low
+        if bar_range <= 0:
+            return None
+
+        tp_dist = bar_range * tp_mult
+
+        # Breakout long
+        if bar_close > self._range_high:
+            sl = self._range_low if sl_opp else (self._range_high - bar_range)
+            tp = self._range_high + tp_dist
+            self._traded_today = True
+            return ("long", sl, tp, "London")
+
+        # Breakout short
+        if bar_close < self._range_low:
+            sl = self._range_high if sl_opp else (self._range_low + bar_range)
+            tp = self._range_low - tp_dist
+            self._traded_today = True
+            return ("short", sl, tp, "London")
+
+        return None
+
+
+class _EMPStrategyAdapter(_BaseStrategyAdapter):
+    """
+    EMP (Session Momentum) strategy adapter.
+
+    Params
+    ------
+    atr_period    : int    ATR lookback
+    atr_band_mult : float  bands = VWAP ± atr_band_mult * ATR
+    rsi_period    : int    RSI lookback
+    rsi_threshold : int    RSI filter (long > 50+threshold, short < 50-threshold)
+    sl_atr_mult   : float  SL = entry ± sl_atr_mult * ATR
+    tp_atr_mult   : float  TP = entry ± tp_atr_mult * ATR
+    symbol        : str    instrument
+    """
+
+    def __init__(self, params: dict[str, Any], symbol: str = "EURUSD") -> None:
+        self.params = params
+        self.symbol = symbol
+        self._traded_today: bool = False
+
+    def reset(self) -> None:
+        self._traded_today = False
+
+    def on_bar(self, bar_time, bar, prev_bars, daily_state, symbol, lot_size):
+        from backtest_engine import Indicators  # type: ignore[import]
+
+        p = self.params
+        atr_period   = int(p["atr_period"])
+        atr_mult     = float(p["atr_band_mult"])
+        rsi_period   = int(p["rsi_period"])
+        rsi_thresh   = int(p["rsi_threshold"])
+        sl_atr       = float(p["sl_atr_mult"])
+        tp_atr       = float(p["tp_atr_mult"])
+
+        # Only trade during London/NY overlap session: 08:00–16:00 UTC
+        bh = bar_time.hour
+        if not (8 <= bh < 16):
+            return None
+
+        # Reset daily flag at session open
+        if bh == 8 and bar_time.minute == 0:
+            self._traded_today = False
+
+        if self._traded_today:
+            return None
+
+        if len(prev_bars) < max(atr_period, rsi_period) + 5:
+            return None
+
+        highs  = prev_bars["high"].to_numpy()
+        lows   = prev_bars["low"].to_numpy()
+        closes = prev_bars["close"].to_numpy()
+
+        atr = Indicators.atr(highs, lows, closes, period=atr_period)
+        rsi = Indicators.rsi(closes, period=rsi_period)
+
+        if math.isnan(atr) or math.isnan(rsi) or atr <= 0:
+            return None
+
+        # Session VWAP from today's 08:00
+        session_start = bar_time.normalize().replace(hour=8)
+        session_bars  = prev_bars[prev_bars.index >= session_start]
+        vwap = Indicators.session_vwap(session_bars)
+
+        if math.isnan(vwap):
+            return None
+
+        bar_close = float(bar["close"])
+        upper_band = vwap + atr_mult * atr
+        lower_band = vwap - atr_mult * atr
+
+        # Long: price above upper band AND RSI shows momentum
+        if bar_close > upper_band and rsi > (50 + (rsi_thresh - 50)):
+            sl = bar_close - sl_atr * atr
+            tp = bar_close + tp_atr * atr
+            self._traded_today = True
+            return ("long", sl, tp, "London")
+
+        # Short: price below lower band AND RSI shows downside momentum
+        if bar_close < lower_band and rsi < (50 - (rsi_thresh - 50)):
+            sl = bar_close + sl_atr * atr
+            tp = bar_close - tp_atr * atr
+            self._traded_today = True
+            return ("short", sl, tp, "London")
+
+        return None
+
+
+_STRATEGY_ADAPTERS: dict[str, type] = {
+    "LRB": _LRBStrategyAdapter,
+    "EMP": _EMPStrategyAdapter,
+}
+
+
+# ---------------------------------------------------------------------------
+# Optimizer-facing adapter: wraps real engine + strategy into simple interface
+# ---------------------------------------------------------------------------
+
+class BacktestEngine:
+    """
+    Unified adapter between the WalkForwardOptimizer and the real BacktestEngine.
+
+    The real engine takes a `strategy` object; this adapter instantiates the
+    correct strategy adapter class for "LRB" or "EMP" and converts the real
+    engine's trade/equity results into the normalized dict format the optimizer
+    consumes.
+
+    Falls back to a pure-Python stub when the real engine is not available
+    (e.g. during unit tests or on machines without the full backtest engine).
+
+    Interface
+    ---------
+    engine = BacktestEngine(strategy="LRB" | "EMP", params=dict, symbol="EURUSD")
+    result = engine.run(ohlcv_df)
+    # result keys: trades, equity_curve, sharpe, profit_factor, win_rate,
+    #              max_drawdown, total_return
+    """
+
+    _DEFAULT_SYMBOL = "EURUSD"
+    _INITIAL_CAPITAL = 10_000.0
+    _LOT_SIZE = 0.1
+
+    def __init__(
+        self,
+        strategy: str,
+        params: dict[str, Any],
+        symbol: str = _DEFAULT_SYMBOL,
+        initial_capital: float = _INITIAL_CAPITAL,
+        lot_size: float = _LOT_SIZE,
+    ) -> None:
+        self.strategy = strategy
+        self.params = params
+        self.symbol = symbol
+        self.initial_capital = initial_capital
+        self.lot_size = lot_size
+
+    def run(self, ohlcv_df: pd.DataFrame) -> dict[str, Any]:
+        """Run strategy on ohlcv_df and return normalized results dict."""
+        if _REAL_ENGINE_AVAILABLE and self.strategy in _STRATEGY_ADAPTERS:
+            return self._run_real(ohlcv_df)
+        return self._run_stub(ohlcv_df)
+
+    # ------------------------------------------------------------------
+    def _run_real(self, ohlcv_df: pd.DataFrame) -> dict[str, Any]:
+        """Use the real BacktestEngine + strategy adapter."""
+        strategy_cls = _STRATEGY_ADAPTERS[self.strategy]
+        strategy_obj = strategy_cls(params=self.params, symbol=self.symbol)
+
+        engine = _RealBacktestEngine(
+            symbol=self.symbol,
+            strategy_name=self.strategy,
+            initial_capital=self.initial_capital,
+            lot_size=self.lot_size,
+        )
+        engine.run(ohlcv_df, strategy_obj)
+        raw = engine.get_results()
+        return self._normalize_real_results(raw)
+
+    @staticmethod
+    def _normalize_real_results(raw: dict[str, Any]) -> dict[str, Any]:
+        """
+        Convert BacktestEngine.get_results() format to the optimizer's
+        normalized format.
+
+        Real format:
+          raw["trades"]      -> pd.DataFrame (one row per trade)
+          raw["equity_curve"] -> pd.Series (capital at each bar)
+          raw["final_equity"] -> float
+          raw["initial_capital"] -> float
+
+        Optimizer format:
+          trades      -> list[dict] with keys: entry_dt, exit_dt, pnl
+          equity_curve -> list[float]
+          sharpe, profit_factor, win_rate, max_drawdown, total_return
+        """
+        trades_df: pd.DataFrame = raw.get("trades", pd.DataFrame())
+        equity: pd.Series = raw.get("equity_curve", pd.Series(dtype=float))
+        initial_cap: float = float(raw.get("initial_capital", 10_000.0))
+
+        if trades_df.empty or len(equity) == 0:
+            return _empty_results()
+
+        # Normalize equity to fraction of initial capital
+        equity_arr = equity.to_numpy(dtype=float) / initial_cap
+
+        # Build trade list in optimizer format
+        trades: list[dict[str, Any]] = []
+        for _, row in trades_df.iterrows():
+            pnl_frac = float(row.get("pnl_net", 0.0)) / initial_cap
+            trades.append({
+                "entry_dt": row.get("entry_time", datetime(2020, 1, 1)),
+                "exit_dt":  row.get("exit_time",  datetime(2020, 1, 1)),
+                "pnl":      pnl_frac,
+            })
+
+        pnls = np.array([t["pnl"] for t in trades])
+
+        # Metrics
+        sharpe = _compute_sharpe(pnls)
+
+        wins_pnl  = pnls[pnls > 0]
+        loss_pnl  = pnls[pnls < 0]
+        pf = (wins_pnl.sum() / abs(loss_pnl.sum())
+              if len(loss_pnl) > 0 and abs(loss_pnl.sum()) > 0 else float("inf"))
+
+        win_rate = float((pnls > 0).mean()) if len(pnls) > 0 else 0.0
+
+        peak = np.maximum.accumulate(equity_arr)
+        dd = (peak - equity_arr) / np.where(peak == 0, 1.0, peak)
+        max_dd = float(dd.max()) if len(dd) > 0 else 0.0
+
+        total_return = float(equity_arr[-1] - 1.0)
+
+        return {
+            "trades": trades,
+            "equity_curve": equity_arr.tolist(),
+            "sharpe": sharpe,
+            "profit_factor": pf,
+            "win_rate": win_rate,
+            "max_drawdown": max_dd,
+            "total_return": total_return,
+        }
+
+    # ------------------------------------------------------------------
+    def _run_stub(self, ohlcv_df: pd.DataFrame) -> dict[str, Any]:
+        """
+        Pure-Python stub used when the real engine is unavailable.
+        Generates synthetic results seeded by the parameter hash so that
+        different parameter combinations produce different (but stable)
+        results — allowing the optimizer to meaningfully compare them.
+        """
+        rng = np.random.default_rng(
+            seed=abs(hash(json.dumps(self.params, sort_keys=True, default=str))) % (2**31)
+        )
+        n_bars = len(ohlcv_df)
+        n_trades = max(0, int(n_bars / 20 + rng.normal(0, 3)))
+        if n_trades == 0:
+            return _empty_results()
+
+        pnls = rng.normal(loc=0.002, scale=0.012, size=n_trades)
+        equity = np.cumprod(1 + pnls)
+        peak = np.maximum.accumulate(equity)
+        drawdowns = (peak - equity) / peak
+        wins = (pnls > 0).sum()
+
+        sharpe = _compute_sharpe(pnls)
+        pf = (pnls[pnls > 0].sum() / abs(pnls[pnls < 0].sum())
+              if (pnls < 0).any() else float("inf"))
+
+        trades = []
+        base_dt = (
+            ohlcv_df.index[0].to_pydatetime()
+            if hasattr(ohlcv_df.index[0], "hour")
+            else datetime(2020, 1, 1)
+        )
+        for i, p in enumerate(pnls):
+            entry = base_dt + timedelta(hours=i * 8)
+            trades.append({
+                "entry_dt": entry,
+                "exit_dt": entry + timedelta(hours=4),
+                "pnl": float(p),
+            })
+
+        return {
+            "trades": trades,
+            "equity_curve": equity.tolist(),
+            "sharpe": float(sharpe),
+            "profit_factor": float(pf),
+            "win_rate": float(wins / n_trades),
+            "max_drawdown": float(drawdowns.max()),
+            "total_return": float(equity[-1] - 1),
+        }
 
 
 # ---------------------------------------------------------------------------
