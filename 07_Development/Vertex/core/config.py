@@ -30,6 +30,7 @@ class VertexConfig:
     server_port: int = 8420
     nim_api_key: str = field(default="", repr=False)
     cost_table: dict = field(default_factory=dict)
+    ethovx: dict = field(default_factory=dict)  # {base_model, approved_sources}
 
 
 def default_data_dir() -> str:
@@ -59,6 +60,7 @@ def load_config(config_path: str = "config.yaml") -> VertexConfig:
         server_port=int(data.get("server_port", 8420)),
         nim_api_key=api_key,
         cost_table=data.get("cost_table", {}),
+        ethovx=data.get("ethovx", {}),
     )
 
 

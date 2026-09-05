@@ -15,6 +15,7 @@ from pathlib import Path
 
 from core.security.confirmation_gate import ConfirmationGate, RiskLevel
 from core.memory.db import VertexMemory
+from core.modules.windows_recycle import restore_from_recycle_bin
 
 try:
     from send2trash import send2trash  # type: ignore
@@ -90,16 +91,31 @@ class FileOpsModule:
         )
 
     async def undo_last(self) -> FileOpsResult:
-        """'וורטקס בטל את הפעולה האחרונה' — משחזר מהאשפה (best-effort)."""
+        """'וורטקס בטל את הפעולה האחרונה' — משחזר מהאשפה (best-effort, §5)."""
         last = self.memory.get_last_undo()
         if not last:
             return FileOpsResult(False, "אין פעולה קודמת לביטול.")
 
-        if last["action_type"] == "delete":
-            # שחזור אמיתי מהאשפה תלוי OS (Windows Shell API); כאן מסמנים
-            # את הרשומה כמבוטלת ומדווחים למשתמש להיכן לפנות ידנית אם
-            # השחזור האוטומטי לא נתמך בסביבה הנוכחית.
-            self.memory.mark_undo_reverted(last["id"])
-            return FileOpsResult(True, "הפעולה סומנה כמבוטלת. שחזר את הקבצים מהאשפה של Windows.")
+        if last["action_type"] != "delete":
+            return FileOpsResult(False, "סוג הפעולה האחרונה אינו נתמך לביטול אוטומטי.")
 
-        return FileOpsResult(False, "סוג הפעולה האחרונה אינו נתמך לביטול אוטומטי.")
+        payload = json.loads(last["payload"])
+        original_paths = payload.get("files", [])
+        restored, failed = restore_from_recycle_bin(original_paths)
+        self.memory.mark_undo_reverted(last["id"])
+
+        if restored and not failed:
+            message = f"שוחזרו {len(restored)} קבצים מהאשפה בהצלחה."
+        elif restored and failed:
+            message = (f"שוחזרו {len(restored)} קבצים אוטומטית. "
+                       f"{len(failed)} קבצים דורשים שחזור ידני מהאשפה של Windows.")
+        else:
+            message = ("השחזור האוטומטי אינו נתמך בסביבה זו (זמין רק ב-Windows עם "
+                       "winshell מותקן) — שחזר את הקבצים ידנית מהאשפה של Windows.")
+
+        if self.audit_log:
+            self.audit_log.write("UNDO_APPLIED", undo_id=last["id"],
+                                  restored=len(restored), failed=len(failed))
+
+        return FileOpsResult(bool(restored) or not failed, message,
+                              affected=restored, undo_id=last["id"])

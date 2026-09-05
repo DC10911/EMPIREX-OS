@@ -25,7 +25,7 @@ from core.nim_client.model_router import model_for
 from core.router.graph import VertexGraph, VertexState
 from core.router.intent_classifier import classify_intent
 from core.security.audit_log import AuditLog
-from core.security.confirmation_gate import ConfirmationGate
+from core.security.confirmation_gate import ConfirmationGate, RiskLevel
 from core.voice.tts import HebrewTTS, enforce_hebrew_reply_language
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -115,6 +115,41 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
         return {"reply": "קיבלתי את בקשת הקוד. אשלח שאלות הבהרה אם יחסר מידע, "
                           "ולאחר מכן אציג diff לאישורך לפני כל שמירה."}
 
+    async def ethovx_train_node(state: VertexState) -> dict:
+        """
+        משימת אימון ETHOVX — תמיד job מתוזמן ומאושר, לעולם לא 'רצה חופשי
+        ברקע ומשתנה בעצמה' (§Scope, §9.2ד). דורשת אישור מפורש לפני הפעלה,
+        ורצה כמשימת רקע כך שהצ'אט לא נחסם עד לסיום האימון.
+        """
+        approved = await gate.request(
+            action_desc="הפעלת ריצת אימון ETHOVX על הקורפוס המאושר בהגדרות",
+            details={"base_model": "Llama-3.2-3B (Ollama)"},
+            risk=RiskLevel.MEDIUM,
+        )
+        if not approved:
+            return {"reply": "האימון לא אושר — לא הופעלה שום ריצה."}
+
+        approved_sources = config.ethovx.get("approved_sources", [])
+        if not approved_sources:
+            return {"reply": "לא הוגדרו מקורות קורפוס מאושרים (ethovx.approved_sources "
+                              "ב-config.yaml). הוסף נתיבים ונסה שוב."}
+
+        async def _run_and_report():
+            from ethovx.train import run_training_job
+            report = await asyncio.to_thread(
+                run_training_job,
+                config.ethovx.get("base_model", "llama3.2:3b"),
+                approved_sources,
+                str(Path(config.data_dir) / "ethovx_checkpoints"),
+                audit_log,
+            )
+            await ws_manager.broadcast({"type": "TASK_SUMMARY", "task_id": "ethovx",
+                                         "task_label": "אימון ETHOVX",
+                                         "content": report.summary_text})
+
+        asyncio.create_task(_run_and_report())
+        return {"reply": "ריצת אימון ETHOVX הופעלה ברקע — אקבל דוח מסכם בסיום."}
+
     async def chat_node(state: VertexState) -> dict:
         if nim_client is None:
             return {"reply": "לא הוגדר מפתח NVIDIA NIM API עדיין — הגדר אותו בקובץ ההגדרות "
@@ -131,6 +166,7 @@ def create_app(config_path: str = "config.yaml") -> FastAPI:
     graph.add_node("code_gen_node", code_gen_node)
     graph.add_node("security_audit_node", security_audit_node)
     graph.add_node("memory_node", memory_node)
+    graph.add_node("ethovx_train_node", ethovx_train_node)
     graph.add_node("chat_node", chat_node)
 
     @app.get("/health")

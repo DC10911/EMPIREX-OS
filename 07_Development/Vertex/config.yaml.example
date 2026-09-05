@@ -19,3 +19,10 @@ wake_word_threshold: 0.55
 cost_table:
   meta/llama-3.3-70b-instruct: { in: 0.0, out: 0.0 }
   qwen/qwen2.5-coder-32b-instruct: { in: 0.0, out: 0.0 }
+
+# ETHOVX — מודל השפה המקומי המתמחה (Phase 3, אופציונלי).
+# approved_sources: רק קבצים/תיקיות אלו ישמשו לאימון — לעולם לא "כל האינטרנט".
+ethovx:
+  base_model: "llama3.2:3b"     # נטען מקומית דרך Ollama
+  approved_sources: []          # למשל: ["C:\\Vertex\\corpus\\pine_script_docs"]
+

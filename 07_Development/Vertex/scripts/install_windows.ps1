@@ -80,8 +80,25 @@ if (Test-Path $wakeModel) {
 
 Pop-Location
 
+# 8. בדיקת רכיבים אופציונליים (Docker ל-Code-Gen, Ollama ל-ETHOVX)
+Write-Host ""
+Write-Host "בודק רכיבים אופציונליים..." -ForegroundColor Cyan
+if (Get-Command docker -ErrorAction SilentlyContinue) {
+    Write-Host "  Docker נמצא — Code-Gen יוכל להריץ קוד ב-sandbox מבודד." -ForegroundColor Green
+} else {
+    Write-Host "  Docker לא נמצא — Code-Gen יכתוב קוד אך לא יוכל להריץ אותו ב-sandbox." -ForegroundColor Yellow
+    Write-Host "  להתקנה: https://www.docker.com/products/docker-desktop/" -ForegroundColor Yellow
+}
+if (Get-Command ollama -ErrorAction SilentlyContinue) {
+    Write-Host "  Ollama נמצא — ETHOVX יוכל לרוץ (בכפוף ל-GPU מתאים)." -ForegroundColor Green
+} else {
+    Write-Host "  Ollama לא נמצא — נדרש רק אם תרצה להפעיל אימון ETHOVX (Phase 3)." -ForegroundColor Yellow
+    Write-Host "  להתקנה: https://ollama.com/download" -ForegroundColor Yellow
+}
+
 Write-Host ""
 Write-Host "=== ההתקנה הושלמה ===" -ForegroundColor Green
 Write-Host "1. פתח את $InstallDir\config.yaml והגדר את מפתח ה-NVIDIA NIM API (ר' README.md)."
 Write-Host "2. הפעל את Vertex דרך קיצור הדרך על שולחן העבודה, או ע"י:"
 Write-Host "   $InstallDir\scripts\start_vertex.bat"
+Write-Host "3. לרשימת השלבים האופציונליים (wake-word / Docker / GPU) ר' README.md סעיף 9."

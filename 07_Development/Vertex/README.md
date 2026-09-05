@@ -13,9 +13,18 @@ Phase 3 — ר' למטה).
 
 מסמך זה הוא ה-README התפעולי של המימוש בפועל, שנבנה לפי המפרט ההנדסי
 המלא שהעברת (VERTEX — מפרט הנדסי, 45 עמודים, v1.0). המימוש שבתיקייה הזו
-מכסה את **Phase 1 (MVP)** במלואו ואת השלד המלא של Phase 2 (§11 במפרט):
-Orchestrator, שער אישורים, יומן ביקורת עם hash-chain, ניהול קבצים בטוח,
-זיכרון קבוע, ממשק צ'אט מלא-מסך בעברית, ומודול קול עברי.
+מכסה את **Phase 1 (MVP), Phase 2 (הרחבת יכולות ליבה) ואת שלד Phase 3
+(ETHOVX)** — כל 12 המודולים שהוגדרו ב-§14: Orchestrator, שער אישורים,
+יומן ביקורת עם hash-chain, ניהול קבצים בטוח עם שחזור אוטומטי מהאשפה,
+אוטומציית דפדפן עם ריבוי משימות ו-tiling אמיתי, כתיבת קוד עם sandbox
+Docker אמיתי, צינור אימון ETHOVX, זיכרון קבוע, ממשק צ'אט מלא-מסך
+בעברית, ומודול קול עברי.
+
+**מה שנשאר תלוי במחשב הפיזי שלך ולא ניתן להשלים מרחוק**: אימון מודל
+ה-wake-word (חייב את הקלטת הקול שלך בפועל), חיבור GPU אמיתי לאימון
+ETHOVX, והתקנת Docker Desktop להפעלת ה-sandbox. אלה לא "חוסרים בקוד"
+— הם דורשים חומרה/קלט שרק אתה יכול לספק, וממש מתועדים למטה כשלבים
+מפורשים שתבצע בעצמך.
 
 ---
 
@@ -154,23 +163,47 @@ cd C:\Vertex
 
 ---
 
-## 7. מה כבר עובד בפועל היום (נבדק אוטומטית, 8/8 טסטים עוברים)
+## 7. מה כבר עובד בפועל היום (נבדק אוטומטית, 16/16 טסטים עוברים)
 
 ```
 tests/unit/test_audit_log.py::test_write_and_verify_chain PASSED
 tests/unit/test_audit_log.py::test_tamper_detected PASSED
 tests/unit/test_audit_log.py::test_secrets_never_logged_by_gate PASSED
+tests/unit/test_browser_tiling.py::test_concurrent_tasks_get_distinct_slots PASSED
+tests/unit/test_browser_tiling.py::test_next_free_slot_reuses_freed_slot PASSED
 tests/unit/test_confirmation_gate.py::test_confirmation_approved PASSED
 tests/unit/test_confirmation_gate.py::test_confirmation_timeout_defaults_to_reject PASSED
 tests/unit/test_confirmation_gate.py::test_no_action_without_explicit_approval PASSED
+tests/unit/test_ethovx_corpus.py::test_build_corpus_only_from_approved_paths PASSED
+tests/unit/test_ethovx_corpus.py::test_corpus_hash_is_deterministic PASSED
 tests/unit/test_file_ops.py::test_delete_matching_requires_approval_and_moves_to_trash PASSED
 tests/unit/test_file_ops.py::test_no_deletion_without_approval PASSED
+tests/unit/test_sandbox_runner.py::test_sandbox_unavailable_reported_honestly PASSED
+tests/unit/test_undo_restore.py::test_undo_last_reports_honest_failure_when_restore_unsupported PASSED
+tests/unit/test_undo_restore.py::test_undo_last_reports_success_when_restore_works PASSED
+tests/unit/test_undo_restore.py::test_undo_with_no_history PASSED
 ```
 
-- **Orchestrator** (FastAPI + WebSocket) — עולה, מגיב על `/health`.
-- **Confirmation Gate** — שום מחיקה לא קורית בלי אישור מפורש; timeout=דחייה.
+הרצה עצמאית: `cd 07_Development/Vertex && PYTHONPATH=. pytest tests/unit -v`
+
+- **Orchestrator** (FastAPI + WebSocket) — עולה, מגיב על `/health` ו-`/api/security/audit`.
+- **Confirmation Gate** — שום מחיקה/הרצת קוד/אימון לא קורים בלי אישור מפורש; timeout=דחייה.
 - **Audit Log** — hash-chain אמיתי, מזהה שיבוש בקובץ (מוכח בטסט).
-- **File Ops** — מחיקה = אשפה (`send2trash`) בלבד, עם undo log.
+- **File Ops** — מחיקה = אשפה (`send2trash`) בלבד, עם undo log **ושחזור אוטומטי
+  אמיתי** מהאשפה דרך Windows Shell API (`winshell`) — לא רק "לך תשחזר ידנית".
+- **Browser Automation** — עד 4 משימות מקביליות עם **tiling אמיתי**
+  (כל חלון Chromium/Edge/Firefox נפתח ברביע נפרד של המסך אוטומטית,
+  `--window-position`/`--window-size`), BrowserContext מבודד לכל משימה,
+  חסימת injection guard על תוכן דף.
+- **Code-Gen** — bandit (סטטי) **+ sandbox Docker אמיתי** (`--network none`,
+  `--rm`, מגבלת CPU/זיכרון) לפני כל בקשת אישור; אם Docker לא מותקן —
+  מדווח זאת בפירוש בכרטיס האישור, לא מדמה בדיקה שלא קרתה.
+- **ETHOVX** — צינור אימון LoRA מלא: `corpus_manager.py` (קורפוס רק
+  ממקורות מאושרים + hash SHA-256 בר-שחזור), `eval_suite/` (5 שאלות
+  בדיקה קבועות, מדד דיוק אמיתי לפני/אחרי), `train.py` (rollback
+  אוטומטי אם ריצה הרעה ביצועים, שמירת 3 checkpoints אחרונים בלבד).
+  מחובר ל-Orchestrator דרך `ethovx_train_node` — job מתוזמן ומאושר,
+  לעולם לא רץ ברקע ללא אישור.
 - **Memory** — SQLite עם עובדות/היסטוריית משימות/undo log, פקודת "תשכח".
 - **Security Audit** — סורק Windows Defender/Firewall/Secure Boot/TPM/
   פורטים (רץ במלואו על Windows; על לינוקס בזמן פיתוח חוזר "unsupported").
@@ -178,11 +211,11 @@ tests/unit/test_file_ops.py::test_no_deletion_without_approval PASSED
 - **UI Shell** — Electron מלא-מסך, RTL עברי, פאנל משימות, כרטיס אישור.
 - **TTS עברי** — Hila/Avri (edge-tts Neural).
 
-מה שדורש עוד עבודה לפני production מלא (Phase 2-3 במפרט, §11):
-אימון מודל ה-wake-word (אישי, דורש את הקול שלך), Playwright מלא עם
-ריבוי חלונות tiling, sandbox Docker אמיתי ל-Code-Gen, וצינור האימון
-של ETHOVX. השלד המלא לכולם קיים בקוד (`core/modules/browser_automation.py`,
-`core/modules/code_gen.py`), מוכן להרחבה.
+**מה שנשאר לביצוע אך ורק אצלך, על החומרה הפיזית שלך** (לא ניתן
+להשלים מרחוק בשום אופן): אימון מודל ה-wake-word (דורש את הקלטת
+קולך), הרצת אימון ETHOVX בפועל (דורש GPU עם 8GB+ VRAM ו-Ollama
+מותקן), והתקנת Docker Desktop להפעלת ה-sandbox של Code-Gen. שלושתם
+מתועדים כצעדים מפורשים בהמשך המסמך.
 
 ---
 
@@ -190,28 +223,66 @@ tests/unit/test_file_ops.py::test_no_deletion_without_approval PASSED
 
 ```
 Vertex/
-├── core/                     # Orchestrator — המוח של הסוכן
-│   ├── main.py                # FastAPI + WebSocket, כאן הכל מתחבר
-│   ├── config.py               # טעינת config.yaml + DPAPI secrets
-│   ├── router/                 # סיווג כוונות + state machine
-│   ├── modules/                 # file_ops, browser, code_gen, security_audit
-│   ├── security/                 # confirmation_gate, audit_log, injection_guard
-│   ├── memory/                     # זיכרון קבוע (SQLite)
-│   ├── voice/                       # TTS/STT עברית
-│   └── nim_client/                    # NVIDIA NIM API wrapper
+├── core/                       # Orchestrator — המוח של הסוכן
+│   ├── main.py                  # FastAPI + WebSocket, כאן הכל מתחבר
+│   ├── config.py                 # טעינת config.yaml + DPAPI secrets
+│   ├── router/                   # סיווג כוונות + state machine
+│   ├── modules/                   # file_ops, browser, code_gen, security_audit,
+│   │                                sandbox_runner, windows_recycle
+│   ├── security/                   # confirmation_gate, audit_log, injection_guard
+│   ├── memory/                       # זיכרון קבוע (SQLite)
+│   ├── voice/                         # TTS/STT עברית
+│   └── nim_client/                      # NVIDIA NIM API wrapper
+├── ethovx/                     # Phase 3 — צינור אימון LoRA מקומי
+│   ├── train.py                  # לולאת LoRA fine-tune + rollback
+│   ├── corpus_manager.py           # קורפוס ממקורות מאושרים בלבד + hash
+│   └── eval_suite/                   # 5 שאלות בדיקה קבועות + מדידת דיוק
 ├── wake_service/               # שירות "היי וורטקס" ברקע
 ├── ui_shell/                    # Electron — חלון הצ'אט המלא-מסך
-├── installer/                    # Inno Setup — installer חתום
+├── installer/                    # Inno Setup + Dockerfile.sandbox
 ├── scripts/                       # התקנה/הרצה על Windows
-└── tests/unit/                     # 8 טסטים, כולם עוברים
+└── tests/unit/                     # 16 טסטים, כולם עוברים
 ```
 
 ---
 
-## 9. הצעד הבא
+## 9. שלושת הצעדים שנותרו לך לבד (חומרה/קלט אישי בלבד)
 
-הכל מוכן להרצה על מחשב Windows אמיתי כפי שמתואר למעלה. השלב הטבעי
-הבא — לפי מפת הדרכים במפרט (§11) — הוא **Phase 2**: אוטומציית דפדפן
-מלאה עם ריבוי משימות גלויות זו-לצד-זו, ו-Code-Gen עם sandbox אמיתי.
-תגיד לי אם להמשיך לשם, או אם קודם תרצה שאעזור לך להריץ את ה-Phase 1
-במחשב בפועל ולבדוק שהכול עובד אצלך.
+הקוד עצמו מלא ונבדק. שלושת הדברים הבאים דורשים משהו שרק אתה יכול
+לספק — לא חוסר בקוד:
+
+### 9.1 אימון ה-wake-word ("היי וורטקס") — חובה להפעלה קולית
+ר' סעיף 5 למעלה ו-`wake_service/README.md`. ~20 דקות, דורש שתקליט
+את עצמך אומר את הביטוי. **בלי זה Vertex עובד מצוין דרך טקסט/כפתור
+מיקרופון** — זו לא חסימה לשימוש.
+
+### 9.2 Docker Desktop — נדרש להרצת קוד שנוצר (Code-Gen)
+1. הורד והתקן: https://www.docker.com/products/docker-desktop/
+2. הרץ אותו פעם אחת כדי שהשירות יעלה ברקע.
+3. זהו — `sandbox_runner.py` ימשוך אוטומטית את `python:3.12-slim`
+   בפעם הראשונה שתבקש מ-Vertex לכתוב ולהריץ קוד.
+
+בלי Docker, Code-Gen עדיין יכתוב לך קוד ויציג אותו + סריקת bandit,
+אבל **יסרב לאשר הרצה דינמית** ויגיד לך בפירוש "Docker אינו מותקן" —
+במקום לדמות שהוא בדק את הקוד כשלא באמת בדק.
+
+### 9.3 GPU + Ollama — נדרש להרצת אימון ETHOVX בפועל
+1. וודא כרטיס מסך NVIDIA עם 8GB+ VRAM (ר' טבלת חומרה, §15.1 במפרט).
+2. התקן Ollama: https://ollama.com/download ואז `ollama pull llama3.2:3b`
+3. הגדר `ethovx.approved_sources` ב-`config.yaml` — רק לנתיבים
+   שאתה מאשר לאמן עליהם (למשל תיקיית תיעוד Pine Script).
+4. תגיד ל-Vertex "תתחיל אימון ETHOVX" — הוא יבקש אישור, ואז ירוץ
+   ברקע וידווח דוח מסכם עם דיוק לפני/אחרי.
+
+בלי `torch`/`peft`/`transformers` מותקנים, `train.py` מזהה זאת
+ומדווח "לא בוצע אימון בפועל" במקום לדמות תוצאה — כמו כל שאר המערכת,
+שום דבר כאן לא מעמיד פנים שהוא הצליח כשלא הצליח.
+
+---
+
+## 10. הצעד הבא
+
+הכל מוכן להרצה על מחשב Windows אמיתי כפי שמתואר למעלה — Phase 1, 2
+ושלד Phase 3 שלמים ונבדקים. מה שנשאר הוא הרצה בפועל על המחשב שלך
+(כולל שלושת הצעדים בסעיף 9), ולאחר מכן — Phase 4 העתידי (§11 במפרט):
+אפליקציית טלפון כלקוח נוסף של אותו Orchestrator, שאינו בהיקף הנוכחי.
