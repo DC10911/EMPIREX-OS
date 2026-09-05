@@ -1,0 +1,12 @@
+venv/
+node_modules/
+__pycache__/
+*.pyc
+.pytest_cache/
+config.yaml
+tts_cache/
+training_samples/
+wake_service/models/*.onnx
+dist/
+build/
+*.db

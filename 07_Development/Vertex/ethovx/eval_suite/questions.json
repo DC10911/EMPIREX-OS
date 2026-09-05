@@ -1,0 +1,7 @@
+[
+  {"id": "q1", "question": "מה עושה הפונקציה confirmation_gate ב-Vertex?", "expected_keywords": ["אישור", "משתמש", "הרסני"]},
+  {"id": "q2", "question": "מהי מדיניות ברירת המחדל למחיקת קבצים ב-Vertex?", "expected_keywords": ["אשפה", "send2trash"]},
+  {"id": "q3", "question": "איך Vertex מגן מפני Prompt Injection מדף אינטרנט?", "expected_keywords": ["untrusted", "חוסם", "אישור"]},
+  {"id": "q4", "question": "כמה משימות דפדפן מקביליות Vertex תומך?", "expected_keywords": ["4", "מקביל"]},
+  {"id": "q5", "question": "מה קורה אם המשתמש לא מגיב לבקשת אישור תוך 5 דקות?", "expected_keywords": ["דחייה", "timeout", "לא מאושר"]}
+]

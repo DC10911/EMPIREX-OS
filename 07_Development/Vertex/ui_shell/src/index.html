@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>Vertex</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <aside id="tasks-panel">
+      <h2>משימות פעילות</h2>
+      <ul id="tasks-list"></ul>
+    </aside>
+
+    <main id="chat-area">
+      <header id="status-bar">
+        <span id="status-dot" class="idle"></span>
+        <span id="status-text">Vertex ממתין ל"היי וורטקס"...</span>
+      </header>
+
+      <div id="messages"></div>
+
+      <div id="confirm-banner" class="hidden">
+        <div id="confirm-text"></div>
+        <div id="confirm-actions">
+          <button id="confirm-approve">אשר</button>
+          <button id="confirm-reject">בטל</button>
+        </div>
+      </div>
+
+      <form id="input-form">
+        <button type="button" id="mic-btn" title="דבר עם Vertex">🎤</button>
+        <input id="text-input" type="text" placeholder="כתוב הודעה ל-Vertex..." autocomplete="off" />
+        <button type="submit" id="send-btn">שלח</button>
+      </form>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

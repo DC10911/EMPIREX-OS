@@ -1,0 +1,12 @@
+# Sandbox image ל-Code-Gen (מפרט §10א1, §18.4).
+# Vertex מושך את התמונה הזו (python:3.12-slim הסטנדרטית) ומריץ אותה עם
+# --network none כדי להריץ קוד שנוצר בבידוד מלא לפני כל אישור.
+# אין צורך לבנות תמונה מותאמת — sandbox_runner.py מושך את python:3.12-slim
+# הרשמית ישירות מ-Docker Hub. קובץ זה נשמר כתיעוד/כבסיס להרחבה עתידית
+# (למשל הוספת ספריות נפוצות מראש כדי לחסוך זמן הרצה).
+
+FROM python:3.12-slim
+WORKDIR /sandbox
+RUN pip install --no-cache-dir pytest
+# אין ENTRYPOINT קבוע בכוונה — sandbox_runner.py מזריק את פקודת ההרצה
+# בזמן ריצה (docker run ... sh -c "...").

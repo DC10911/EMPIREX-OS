@@ -1,0 +1,28 @@
+# קובץ תצורה של Vertex — העתק לקובץ בשם config.yaml ומלא לפי הצורך.
+# חשוב: מפתח ה-API עצמו לא נשמר כאן! ר' README.md, סעיף "הגדרת מפתח NVIDIA NIM".
+
+install_dir: "C:\\Vertex"
+data_dir: ""                 # ריק = ברירת מחדל %APPDATA%\Vertex
+
+# קול ושפה — Vertex מדבר אך ורק בעברית, תמיד.
+language: "he-IL"
+tts_voice_gender: "female"   # female -> he-IL-HilaNeural | male -> he-IL-AvriNeural
+
+# רשת מקומית בלבד — לעולם אל תשנה ל-0.0.0.0
+server_host: "127.0.0.1"
+server_port: 8420
+
+# רגישות זיהוי "היי וורטקס" (0.0–1.0). גבוה יותר = פחות false accepts.
+wake_word_threshold: 0.55
+
+# תעריפי NVIDIA NIM לצורך מעקב עלות (עדכן מול המחירון הרשמי בזמן ההטמעה)
+cost_table:
+  meta/llama-3.3-70b-instruct: { in: 0.0, out: 0.0 }
+  qwen/qwen2.5-coder-32b-instruct: { in: 0.0, out: 0.0 }
+
+# ETHOVX — מודל השפה המקומי המתמחה (Phase 3, אופציונלי).
+# approved_sources: רק קבצים/תיקיות אלו ישמשו לאימון — לעולם לא "כל האינטרנט".
+ethovx:
+  base_model: "llama3.2:3b"     # נטען מקומית דרך Ollama
+  approved_sources: []          # למשל: ["C:\\Vertex\\corpus\\pine_script_docs"]
+

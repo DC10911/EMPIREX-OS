@@ -1,0 +1,23 @@
+fastapi==0.115.*
+uvicorn[standard]==0.32.*
+websockets==13.*
+playwright==1.48.*
+openwakeword==0.6.*
+faster-whisper==1.0.*
+sounddevice==0.5.*
+edge-tts==6.1.*
+send2trash==1.8.*
+sqlcipher3-binary==0.5.*; sys_platform == "win32"
+pywin32==308; sys_platform == "win32"
+winshell==0.6.*; sys_platform == "win32"
+bandit==1.7.*
+requests==2.32.*
+pydantic==2.9.*
+pyyaml==6.0.*
+numpy==1.26.*
+pytest==8.3.*
+pytest-asyncio==0.24.*
+
+# ETHOVX (Phase 3) — נדרש רק להרצת אימון LoRA בפועל, לא לליבת Vertex.
+# מותקן בנפרד לפי README (דורש GPU עם 8GB+ VRAM); לא תלות חובה להתקנה בסיסית.
+# torch, peft, transformers, accelerate, bitsandbytes

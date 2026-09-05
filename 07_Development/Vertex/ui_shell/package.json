@@ -1,0 +1,28 @@
+{
+  "name": "vertex-ui-shell",
+  "productName": "Vertex",
+  "version": "1.0.0",
+  "description": "Vertex — סוכן AI אישי מקומי לשליטה במחשב, בעברית מלאה",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.0"
+  },
+  "build": {
+    "appId": "com.dctradingx.vertex",
+    "productName": "Vertex",
+    "files": ["main.js", "preload.js", "src/**/*"],
+    "win": {
+      "target": "nsis",
+      "sign": true,
+      "icon": "../installer/assets/icon.ico"
+    }
+  }
+}
